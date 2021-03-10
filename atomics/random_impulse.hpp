@@ -13,9 +13,13 @@
 #include <math.h>
 #include <map>
 #include <nlohmann/json.hpp>
+#include <utility>  // contains pair
+#include <queue>  // contains priority queue
 
 #include "../data_structures/impulse_message.hpp"
-#include "../data_structures/species.hpp"  // TODO: Get this data from a JSON
+//#include "../data_structures/species.hpp"  // TODO: Get this data from a JSON
+
+#define DEBUG false
 
 using namespace cadmium;
 using namespace std;
@@ -31,7 +35,7 @@ template<typename TIME> class RandomImpulse {
     public:
         // temporary assignments
         // TODO: get from particle information (species)
-        float tau = 2;
+        float tau = 2;  // used in exp dist for next time
         float shape = 2;
         float mean = 2;
 
@@ -39,18 +43,26 @@ template<typename TIME> class RandomImpulse {
         using input_ports = tuple<>;
         using output_ports = tuple<typename RandomImpulse_defs::impulse_out>;
 
+        struct ComparePair {
+            bool operator() (pair<int, TIME> const& p1, pair<int, TIME> const& p2) {
+                return p2.second < p1.second;
+            }
+        };
+
         struct state_type {
             //map<int, float> masses;  // particle_id, mass --- initialize via species (should be stored in JSON)
             //map<int, map<string, float>> particle_data;  // <particle_id, <property_id, data>>
             json particle_data;
+            //map<int, map<string, float>> particle_data;
             int dim;  // specifies the number of dimensions
             TIME next_impulse_time;
             impulse_message_t impulse;
+            priority_queue<pair<int, TIME>, vector<pair<int, TIME>>, ComparePair> particle_times;
         };
         state_type state;
 
         RandomImpulse () {
-            cout << "RandomImpulse default constructor called" << endl;
+            if (DEBUG) cout << "RandomImpulse default constructor called" << endl;
             // initialize test particles
         }
 
@@ -59,23 +71,51 @@ template<typename TIME> class RandomImpulse {
         //RandomImpulse (particle data) {}
 
         RandomImpulse (int test) {
-            cout << "RandomImpulse non-default constructor called with value: " << test << endl;
+            if (DEBUG) cout << "RandomImpulse non-default constructor called with value: " << test << endl;
         }
 
         RandomImpulse (json j, int dim) {  // Do we also want to pass in species information?
-            cout << "RandomImpulse constructor received JSON and dim: " << j << " --- " << dim << endl;
+            if (DEBUG) cout << "RandomImpulse constructor received JSON and dim: " << j << " --- " << dim << endl;
+            //state.particle_data = j.get<map<int, map<string, float>>>();
             state.particle_data = j;
             state.dim = dim;
+
+            // go through particles and get the times at which they should receive RIs
+            for (auto it = state.particle_data.begin(); it != state.particle_data.end(); ++it) {
+                state.particle_times.push(pair<int, TIME>(stoi(it.key()), generate_next_time(state.particle_data[it.key()]["tau"])));
+            }
+
+            /*
+            cout << "particle times" << endl;
+            while (!state.particle_times.empty()) {
+                pair p = state.particle_times.top();
+                cout << p.first << ": " << p.second << endl;
+                state.particle_times.pop();
+            }
+            */
         }
 
         // internal transition
         void internal_transition () {
-            cout << "ri internal transition called" << endl;
-            exponential_distribution<float> exponential_dist(tau);
-            state.next_impulse_time = exponential_dist(generator);
-            //state.next_impulse_time = TIME("00:00:05");  //rand() % 10;
-            //state.impulse = RI_message_t({1, 2, 3});
-            int dim = 3;
+            if (DEBUG) cout << "ri internal transition called" << endl;
+            int currId = state.particle_times.top().first;  // note the current particle's ID
+            state.next_impulse_time = state.particle_times.top().second;  // note the current particle's impulse time
+            state.particle_times.pop();  // remove current particle from queue
+
+            // modify all other particle times
+            priority_queue<pair<int, TIME>, vector<pair<int, TIME>>, ComparePair> particle_times_temp;
+            while (!state.particle_times.empty()) {
+                particle_times_temp.push(pair<int, TIME>(
+                    state.particle_times.top().first,
+                    state.particle_times.top().second - state.next_impulse_time
+                ));
+                state.particle_times.pop();
+            }
+            particle_times_temp.push(pair<int, TIME>(currId, generate_next_time(state.particle_data[to_string(currId)]["tau"])));  // add current
+            state.particle_times = move(particle_times_temp);
+
+            json currParticle = state.particle_data[to_string(state.particle_times.top().first)];
+
             vector<float> next_impulse;
             float momentum_magnitude;
             float factor;
@@ -83,7 +123,7 @@ template<typename TIME> class RandomImpulse {
             float z_component;
             float xy_factor;
 
-            gamma_distribution<float> gamma_dist(mean, shape);  // mean, shape
+            gamma_distribution<float> gamma_dist(currParticle["mean"], currParticle["shape"]);  // mean, shape
             momentum_magnitude = gamma_dist(generator);
 
             // These are created/destroyed every time the internal transition is called
@@ -92,7 +132,7 @@ template<typename TIME> class RandomImpulse {
             uniform_real_distribution<float> uniform_dist_0_1(0, 1);
             uniform_real_distribution<float> uniform_dist_0_2(0, 2);
             uniform_real_distribution<float> uniform_dist_0_2pi(0, 2 * pi);
-            switch (dim) {
+            switch (state.dim) {
                 case 1:
                     factor = 1;
                     direction.push_back(2 * (int)uniform_dist_0_2(generator) - 1);
@@ -119,9 +159,10 @@ template<typename TIME> class RandomImpulse {
                 next_impulse.push_back(i * momentum_magnitude * factor);
             }
 
+            // finish the impulse message
             state.impulse.impulse = next_impulse;
-            state.impulse.particle_id = 0;  // TODO: Use this to identify the particle in question
-            cout << "ri internal transition finishing" << endl;
+            state.impulse.particle_id = currId;
+            if (DEBUG) cout << "ri internal transition finishing" << endl;
         }
 
         // external transition
@@ -133,42 +174,47 @@ template<typename TIME> class RandomImpulse {
         // confluence transition
         // should never happen
         void confluence_transition (TIME e, typename make_message_bags<input_ports>::type mbs) {
-            cout << "ri confluence transition called" << endl;
+            if (DEBUG) cout << "ri confluence transition called" << endl;
             internal_transition();
-            cout << "ri confluence transition finishing" << endl;
+            if (DEBUG) cout << "ri confluence transition finishing" << endl;
         }
 
         // output function
         typename make_message_bags<output_ports>::type output () const {
-            cout << "ri output called" << endl;
+            if (DEBUG) cout << "ri output called" << endl;
             typename make_message_bags<output_ports>::type bags;
             vector<impulse_message_t> bag_port_out;
             bag_port_out.push_back(state.impulse);
             get_messages<typename RandomImpulse_defs::impulse_out>(bags) = bag_port_out;
-            cout << "ri output returning" << endl;
+            if (DEBUG) cout << "ri output returning" << endl;
             return bags;
         }
 
         // time advance function
         TIME time_advance () const {
-            cout << "ri time advance called/returning" << endl;
+            if (DEBUG) cout << "ri time advance called/returning" << endl;
             return state.next_impulse_time;
         }
 
         friend ostringstream& operator<<(ostringstream& os, const typename RandomImpulse<TIME>::state_type& i) {
-            cout << "ri << called" << endl;
+            if (DEBUG) cout << "ri << called" << endl;
             string result = "";
             for (auto impulse_comp : i.impulse.impulse) {
                 result += to_string(impulse_comp) + " ";
             }
             os << "impulse: " << result;
-            cout << "ri << returning" << endl;
+            if (DEBUG) cout << "ri << returning" << endl;
             return os;
         }
     
     private:
         default_random_engine generator;  // used to generate numbers from gamma distribution
         const float pi = 3.14159265359;
+
+        float generate_next_time (float tau) {
+            exponential_distribution<float> exponential_dist(tau);
+            return exponential_dist(generator);
+        }
 };
 
 #endif

@@ -44,7 +44,7 @@ int main () {
     ifstream ifs("../input/config.json");
     json configJson = json::parse(ifs);
     int dim = configJson["particles"][configJson["particles"].begin().key()]["position"].size();  // get number of dimensions
-    json ri_particles = prepParticlesJSON(configJson, {}, {"mass", "tau", "gamma shape", "gamma mean"});
+    json ri_particles = prepParticlesJSON(configJson, {}, {"mass", "tau", "shape", "mean"});
     json resp_particles = prepParticlesJSON(configJson, {"position", "velocity"}, {"mass"});
     json detect_particles = prepParticlesJSON(configJson, {"position", "velocity"}, {"radius"});
 
@@ -105,7 +105,7 @@ int main () {
     /*** Runner call ***/
     dynamic::engine::runner<TIME, logger_top> r(TOP, {0});
     //r.run_until(NDTime("00:05:00:000"));
-    r.run_until(TIME(100));
+    r.run_until(TIME(10));
     return 0;
 }
 

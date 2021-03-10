@@ -11,6 +11,16 @@
 using namespace cadmium;
 using namespace std;
 
+/*
+Funcationality:
+- Currently just relays reponse messages
+- Does not worry about various subV modules as there will be only one for now
+- Communicates with lattice coupled model (which, for now, only contains one subV module)
+
+TODO:
+- Add support for multiple subV modules
+*/
+
 // Port definition
 struct Tracker_defs {
     struct response_in : public in_port<___> {};

@@ -8,7 +8,7 @@
 
 // Output stream
 ostream& operator<<(ostream& os, const impulse_message_t& msg) {
-    string result = msg.particle_id + "";
+    string result = "id:" + to_string(msg.particle_id) + " ";
     for (auto i : msg.impulse) {
         result += to_string(i) + " ";
     }

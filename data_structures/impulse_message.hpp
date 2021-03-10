@@ -10,7 +10,8 @@ using namespace std;
 
 struct impulse_message_t {
     impulse_message_t () {}
-    impulse_message_t (vector<float> i_impulse) : impulse(i_impulse) {}
+    impulse_message_t (vector<float> i_impulse) : impulse(i_impulse), particle_id(-1) {}
+    impulse_message_t (vector<float> i_impulse, int i_particle_id) : impulse(i_impulse), particle_id(i_particle_id) {}
 
     int particle_id;
     vector<float> impulse;

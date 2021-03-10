@@ -17,11 +17,14 @@ Current functionality:
 #include <random>
 #include <math.h>
 #include <map>
+#include <nlohmann/json.hpp>
 
 #include "../data_structures/impulse_message.hpp"
 
 using namespace cadmium;
 using namespace std;
+
+using json = nlohmann::json;
 
 // Port definition
 struct Responder_defs {
@@ -58,6 +61,7 @@ template<typename TIME> class Responder {
         struct state_type {
             // particle mass, position, velocity
             //map
+            json particle_data;
             TIME next_internal;
             impulse_message_t impulse;
         };
@@ -67,13 +71,22 @@ template<typename TIME> class Responder {
             //
         }
 
+        Responder (json j) {
+            cout << "Responder constructor received JSON: " << j << endl;
+            state.particle_data = j;
+        }
+
         // internal transition
         void internal_transition () {
+            cout << "resp internal transition called" << endl;
+            // TODO: simulate particle decay (possibly in another module)
             state.next_internal = numeric_limits<TIME>::infinity();  // the response module should not have internal events
+            cout << "resp internal transition finished" << endl;
         }
 
         // external transition
         void external_transition (TIME e, typename make_message_bags<input_ports>::type mbs) {
+            cout << "resp external transition called" << endl;
             if (get_messages<typename Responder_defs::impulse_in>(mbs).size() > 1) {
                 assert(false && "Responder received more than one concurrent message");
             }
@@ -83,34 +96,42 @@ template<typename TIME> class Responder {
                 // set response message to change the trajectory of affected particles
                 // is this the new trajectory or an impulse to make that happen?
             }
+            cout << "resp external transition finish" << endl;
         }
 
         // confluence transition
         void confluence_transition (TIME e, typename make_message_bags<input_ports>::type mbs) {
+            cout << "resp confluence transition called" << endl;
             internal_transition();
             external_transition(TIME(), move(mbs));
+            cout << "resp confluence transition finishing" << endl;
         }
 
         // output function
         typename make_message_bags<output_ports>::type output () const {
+            cout << "resp output called" << endl;
             typename make_message_bags<output_ports>::type bags;
             vector<impulse_message_t> bag_port_out;
             bag_port_out.push_back(state.impulse);
             get_messages<typename Responder_defs::impulse_out>(bags) = bag_port_out;
+            cout << "resp output returning" << endl;
             return bags;
         }
 
         // time advance function
         TIME time_advance () const {
+            cout << "resp time advance called/returning" << endl;
             return state.next_internal;
         }
 
         friend ostringstream& operator<<(ostringstream& os, const typename Responder<TIME>::state_type& i) {
+            cout << "resp << called" << endl;
             string result = "";
             for (auto impulse_comp : i.impulse.impulse) {
                 result += to_string(impulse_comp) + " ";
             }
             os << "Responder impulse: " << result;
+            cout << "resp << returning" << endl;
             return os;
         }
 };

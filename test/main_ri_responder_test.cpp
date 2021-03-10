@@ -19,12 +19,19 @@
 // C++ libraries
 #include <iostream>
 #include <string>
+#include <nlohmann/json.hpp>  // Used to parse JSON files and manipulate the resulting data
+#include <fstream>  // Used to read from files
+#include <map>
 
 using namespace std;
 using namespace cadmium;
 using namespace cadmium::basic_models::pdevs;
 
+using json = nlohmann::json;
 using TIME = float;
+
+/*** Forward References ***/
+json prepParticlesJSON (json&, vector<string>, vector<string>);
 
 /*** Define input ports for coupled models ***/
 // no input ports
@@ -33,16 +40,23 @@ using TIME = float;
 struct top_out: public out_port<impulse_message_t>{};
 
 int main () {
+    // Get initial particle information prepared
+    ifstream ifs("../input/config.json");
+    json configJson = json::parse(ifs);
+    int dim = configJson["particles"][configJson["particles"].begin().key()]["position"].size();  // get number of dimensions
+    json ri_particles = prepParticlesJSON(configJson, {}, {"mass", "tau", "gamma shape", "gamma mean"});
+    json resp_particles = prepParticlesJSON(configJson, {"position", "velocity"}, {"mass"});
+    json detect_particles = prepParticlesJSON(configJson, {"position", "velocity"}, {"radius"});
+
     /*** RI atomic model instantiation ***/
     shared_ptr<dynamic::modeling::model> random_impulse;
-    cout << "before RI instantiation" << endl;
-    random_impulse = dynamic::translate::make_dynamic_atomic_model<RandomImpulse, TIME>("random_impulse");
-    cout << "after RI instantiation" << endl;
+    random_impulse = dynamic::translate::make_dynamic_atomic_model<RandomImpulse, TIME, json, int>("random_impulse",
+                                                                                                   move(ri_particles),
+                                                                                                   move(dim));
 
     /*** Responder atomic model instantiation ***/
     shared_ptr<dynamic::modeling::model> responder;
-    responder = dynamic::translate::make_dynamic_atomic_model<Responder, TIME>("responder");
-    cout << "adter Responder instantiation" << endl;
+    responder = dynamic::translate::make_dynamic_atomic_model<Responder, TIME, json>("responder", move(resp_particles));
 
     /*** TOP MODEL ***/
     dynamic::modeling::Ports iports_TOP;
@@ -88,12 +102,28 @@ int main () {
 
     using logger_top=logger::multilogger<state, log_messages, global_time_mes, global_time_sta>;
 
-    cout << "initiate runner" << endl;
     /*** Runner call ***/
     dynamic::engine::runner<TIME, logger_top> r(TOP, {0});
-    cout << "beginning runner" << endl;
     //r.run_until(NDTime("00:05:00:000"));
     r.run_until(TIME(100));
-    cout << "finish" << endl;
     return 0;
+}
+
+// args: config JSON, necessary particle element names, necessary species element names
+// return: JSON of format {id : {elements}, id : {elements}, ...}
+json prepParticlesJSON (json& j, vector<string> particle_elements, vector<string> species_elements) {
+    json result;
+    string currSpecies;
+    for (auto it = j["particles"].begin(); it != j["particles"].end(); ++it) {
+        // prune particle information
+        for (auto element : particle_elements) {
+            result[it.key()][element] = j["particles"][it.key()][element];
+        }
+        // add necessary species information
+        for (auto element : species_elements) {
+            currSpecies = j["particles"][it.key()]["species"];
+            result[it.key()][element] = j["species"][currSpecies][element];
+        }
+    }
+    return result;
 }

@@ -14,8 +14,10 @@
 // - mass
 // - radius
 
-map<string, map<string, float>> species;  // species_id, <property_id, property>
-species["default"] = map<string, float> {{"mass", 1}, {"radius", 5}};
-species["small"] = map<string, float> {{"mass", 0.1}, {"radius", 1}};
+// species_id, <property_id, property>
+map<string, map<string, float>> species {
+    {"default", map<string, float> {{"mass", 1}, {"radius", 5}}},
+    {"small",   map<string, float> {{"mass", 0.1}, {"radius", 1}}}
+};
 
 #endif

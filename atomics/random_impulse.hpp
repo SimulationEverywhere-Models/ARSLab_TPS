@@ -12,11 +12,15 @@
 #include <random>
 #include <math.h>
 #include <map>
+#include <nlohmann/json.hpp>
 
 #include "../data_structures/impulse_message.hpp"
+#include "../data_structures/species.hpp"  // TODO: Get this data from a JSON
 
 using namespace cadmium;
 using namespace std;
+
+using json = nlohmann::json;
 
 // Port definition
 struct RandomImpulse_defs {
@@ -38,18 +42,35 @@ template<typename TIME> class RandomImpulse {
         struct state_type {
             //map<int, float> masses;  // particle_id, mass --- initialize via species (should be stored in JSON)
             //map<int, map<string, float>> particle_data;  // <particle_id, <property_id, data>>
+            json particle_data;
+            int dim;  // specifies the number of dimensions
             TIME next_impulse_time;
             impulse_message_t impulse;
         };
         state_type state;
 
         RandomImpulse () {
-            cout << "RandomImpulse constructor called" << endl;
-            //srand(123);  // seed the random number generator
+            cout << "RandomImpulse default constructor called" << endl;
+            // initialize test particles
+        }
+
+        // initialize particles from external file
+        // may import straight from file in defautl constructor
+        //RandomImpulse (particle data) {}
+
+        RandomImpulse (int test) {
+            cout << "RandomImpulse non-default constructor called with value: " << test << endl;
+        }
+
+        RandomImpulse (json j, int dim) {  // Do we also want to pass in species information?
+            cout << "RandomImpulse constructor received JSON and dim: " << j << " --- " << dim << endl;
+            state.particle_data = j;
+            state.dim = dim;
         }
 
         // internal transition
         void internal_transition () {
+            cout << "ri internal transition called" << endl;
             exponential_distribution<float> exponential_dist(tau);
             state.next_impulse_time = exponential_dist(generator);
             //state.next_impulse_time = TIME("00:00:05");  //rand() % 10;
@@ -100,9 +121,11 @@ template<typename TIME> class RandomImpulse {
 
             state.impulse.impulse = next_impulse;
             state.impulse.particle_id = 0;  // TODO: Use this to identify the particle in question
+            cout << "ri internal transition finishing" << endl;
         }
 
         // external transition
+        // receives messages regarding changes to particle mass
         void external_transition (TIME e, typename make_message_bags<input_ports>::type mbs) {
             assert(false && "RI modules must not receive inputs");
         }
@@ -110,29 +133,36 @@ template<typename TIME> class RandomImpulse {
         // confluence transition
         // should never happen
         void confluence_transition (TIME e, typename make_message_bags<input_ports>::type mbs) {
+            cout << "ri confluence transition called" << endl;
             internal_transition();
+            cout << "ri confluence transition finishing" << endl;
         }
 
         // output function
         typename make_message_bags<output_ports>::type output () const {
+            cout << "ri output called" << endl;
             typename make_message_bags<output_ports>::type bags;
             vector<impulse_message_t> bag_port_out;
             bag_port_out.push_back(state.impulse);
             get_messages<typename RandomImpulse_defs::impulse_out>(bags) = bag_port_out;
+            cout << "ri output returning" << endl;
             return bags;
         }
 
         // time advance function
         TIME time_advance () const {
+            cout << "ri time advance called/returning" << endl;
             return state.next_impulse_time;
         }
 
         friend ostringstream& operator<<(ostringstream& os, const typename RandomImpulse<TIME>::state_type& i) {
+            cout << "ri << called" << endl;
             string result = "";
             for (auto impulse_comp : i.impulse.impulse) {
                 result += to_string(impulse_comp) + " ";
             }
             os << "impulse: " << result;
+            cout << "ri << returning" << endl;
             return os;
         }
     

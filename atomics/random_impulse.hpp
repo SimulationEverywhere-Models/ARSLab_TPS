@@ -16,7 +16,7 @@
 #include <utility>  // contains pair
 #include <queue>  // contains priority queue
 
-#include "../data_structures/impulse_message.hpp"
+#include "../data_structures/message.hpp"
 //#include "../data_structures/species.hpp"  // TODO: Get this data from a JSON
 
 #define DEBUG false
@@ -28,16 +28,16 @@ using json = nlohmann::json;
 
 // Port definition
 struct RandomImpulse_defs {
-    struct impulse_out : public out_port<impulse_message_t> {};
+    struct impulse_out : public out_port<message_t> {};
 };
 
 template<typename TIME> class RandomImpulse {
     public:
         // temporary assignments
         // TODO: get from particle information (species)
-        float tau = 2;  // used in exp dist for next time
-        float shape = 2;
-        float mean = 2;
+        //float tau = 2;  // used in exp dist for next time
+        //float shape = 2;
+        //float mean = 2;
 
         // ports definition
         using input_ports = tuple<>;
@@ -50,13 +50,10 @@ template<typename TIME> class RandomImpulse {
         };
 
         struct state_type {
-            //map<int, float> masses;  // particle_id, mass --- initialize via species (should be stored in JSON)
-            //map<int, map<string, float>> particle_data;  // <particle_id, <property_id, data>>
-            json particle_data;
-            //map<int, map<string, float>> particle_data;
+            json particle_data;d
             int dim;  // specifies the number of dimensions
             TIME next_impulse_time;
-            impulse_message_t impulse;
+            message_t impulse;
             priority_queue<pair<int, TIME>, vector<pair<int, TIME>>, ComparePair> particle_times;
         };
         state_type state;
@@ -66,17 +63,12 @@ template<typename TIME> class RandomImpulse {
             // initialize test particles
         }
 
-        // initialize particles from external file
-        // may import straight from file in defautl constructor
-        //RandomImpulse (particle data) {}
-
         RandomImpulse (int test) {
             if (DEBUG) cout << "RandomImpulse non-default constructor called with value: " << test << endl;
         }
 
-        RandomImpulse (json j, int dim) {  // Do we also want to pass in species information?
+        RandomImpulse (json j, int dim) {
             if (DEBUG) cout << "RandomImpulse constructor received JSON and dim: " << j << " --- " << dim << endl;
-            //state.particle_data = j.get<map<int, map<string, float>>>();
             state.particle_data = j;
             state.dim = dim;
 
@@ -84,15 +76,6 @@ template<typename TIME> class RandomImpulse {
             for (auto it = state.particle_data.begin(); it != state.particle_data.end(); ++it) {
                 state.particle_times.push(pair<int, TIME>(stoi(it.key()), generate_next_time(state.particle_data[it.key()]["tau"])));
             }
-
-            /*
-            cout << "particle times" << endl;
-            while (!state.particle_times.empty()) {
-                pair p = state.particle_times.top();
-                cout << p.first << ": " << p.second << endl;
-                state.particle_times.pop();
-            }
-            */
         }
 
         // internal transition
@@ -126,6 +109,7 @@ template<typename TIME> class RandomImpulse {
             gamma_distribution<float> gamma_dist(currParticle["mean"], currParticle["shape"]);  // mean, shape
             momentum_magnitude = gamma_dist(generator);
 
+            // TODO: attempt to correct the below inefficiencies
             // These are created/destroyed every time the internal transition is called
             // Extremely inefficient
             uniform_real_distribution<float> uniform_dist_neg1_1(-1, 1);
@@ -160,7 +144,7 @@ template<typename TIME> class RandomImpulse {
             }
 
             // finish the impulse message
-            state.impulse.impulse = next_impulse;
+            state.impulse.data = next_impulse;
             state.impulse.particle_id = currId;
             if (DEBUG) cout << "ri internal transition finishing" << endl;
         }
@@ -183,7 +167,7 @@ template<typename TIME> class RandomImpulse {
         typename make_message_bags<output_ports>::type output () const {
             if (DEBUG) cout << "ri output called" << endl;
             typename make_message_bags<output_ports>::type bags;
-            vector<impulse_message_t> bag_port_out;
+            vector<message_t> bag_port_out;
             bag_port_out.push_back(state.impulse);
             get_messages<typename RandomImpulse_defs::impulse_out>(bags) = bag_port_out;
             if (DEBUG) cout << "ri output returning" << endl;
@@ -199,7 +183,7 @@ template<typename TIME> class RandomImpulse {
         friend ostringstream& operator<<(ostringstream& os, const typename RandomImpulse<TIME>::state_type& i) {
             if (DEBUG) cout << "ri << called" << endl;
             string result = "";
-            for (auto impulse_comp : i.impulse.impulse) {
+            for (auto impulse_comp : i.impulse.data) {
                 result += to_string(impulse_comp) + " ";
             }
             os << "impulse: " << result;

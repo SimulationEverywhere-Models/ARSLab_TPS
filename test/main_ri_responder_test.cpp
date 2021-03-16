@@ -9,7 +9,7 @@
 #include <NDTime.hpp>
 
 // Message structures
-#include "../data_structures/impulse_message.hpp"
+#include "../data_structures/message.hpp"
 
 // Atomic model headers
 #include <cadmium/basic_model/pdevs/iestream.hpp>  // atomic model for inputs
@@ -37,7 +37,7 @@ json prepParticlesJSON (json&, vector<string>, vector<string>);
 // no input ports
 
 /*** Define output ports for coupled models ***/
-struct top_out: public out_port<impulse_message_t>{};
+struct top_out: public out_port<message_t>{};
 
 int main () {
     // Get initial particle information prepared
@@ -69,8 +69,7 @@ int main () {
     eics_TOP = {};
     dynamic::modeling::EOCs eocs_TOP;
     eocs_TOP = {
-        dynamic::translate::make_EOC<Responder_defs::impulse_out, top_out>("responder"),
-        dynamic::translate::make_EOC<RandomImpulse_defs::impulse_out, top_out>("random_impulse")
+        dynamic::translate::make_EOC<Responder_defs::impulse_out, top_out>("responder")
     };
     dynamic::modeling::ICs ics_TOP;
     ics_TOP = {

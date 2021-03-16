@@ -4,12 +4,12 @@
 #include <fstream>
 #include <string>
 
-#include "impulse_message.hpp"
+#include "message.hpp"
 
 // Output stream
-ostream& operator<<(ostream& os, const impulse_message_t& msg) {
+ostream& operator<<(ostream& os, const message_t& msg) {
     string result = "id:" + to_string(msg.particle_id) + " ";
-    for (auto i : msg.impulse) {
+    for (auto i : msg.data) {
         result += to_string(i) + " ";
     }
     os << result;
@@ -17,11 +17,11 @@ ostream& operator<<(ostream& os, const impulse_message_t& msg) {
 }
 
 // Input stream
-istream& operator>> (istream& is, impulse_message_t& msg) {
+istream& operator>> (istream& is, message_t& msg) {
     int dim = 3;
     for (int i = 0; i < dim; ++i) {
-        is >> msg.impulse[i];
+        is >> msg.data[i];
     }
-    //is >> msg.impulse;
+    //is >> msg.data;
     return is;
 }

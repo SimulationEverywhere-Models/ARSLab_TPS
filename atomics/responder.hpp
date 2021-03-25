@@ -3,7 +3,7 @@
 
 /*
 Current functionality:
-- Relay impulse messages from the impulse_in port through the impulse_out port
+- Relay impulse messages from the impulse_in port through the responder_out port
 */
 
 #include <cadmium/modeling/ports.hpp>
@@ -19,9 +19,9 @@ Current functionality:
 #include <map>
 #include <nlohmann/json.hpp>
 
-#include "../data_structures/message.hpp"
+#include "../test/tags.hpp"  // debug tags
 
-#define DEBUG false
+#include "../data_structures/message.hpp"
 
 using namespace cadmium;
 using namespace std;
@@ -35,10 +35,10 @@ struct Responder_defs {
     //struct collision_in : public in_port<___> {};
     //struct attachment_out : public out_port<___> {};  // not applicable for now (tethering)
     //struct detachment_out : public out_port<___> {};  // not applicable for now (tethering)
-    struct impulse_out : public out_port<message_t> {};  // unsure of purpose (message type may be wrong)
+    //struct impulse_out : public out_port<message_t> {};  // unsure of purpose (message type may be wrong)
     //struct loading_out : public out_port<___> {};
     //struct restitution_out : public out_port<___> {};
-    //struct response_out : public out_port<___> {};
+    struct response_out : public out_port<message_t> {};
 };
 
 template<typename TIME> class Responder {
@@ -59,7 +59,7 @@ template<typename TIME> class Responder {
                                    typename Responder_defs::response_out>;
         */
         using input_ports = tuple<typename Responder_defs::impulse_in>;
-        using output_ports = tuple<typename Responder_defs::impulse_out>;
+        using output_ports = tuple<typename Responder_defs::response_out>;
 
         struct state_type {
             // particle mass, position, velocity
@@ -75,27 +75,27 @@ template<typename TIME> class Responder {
         }
 
         Responder (json j) {
-            if (DEBUG) cout << "Responder constructor received JSON: " << j << endl;
+            if (DEBUG_RE) cout << "Responder constructor received JSON: " << j << endl;
             state.particle_data = j;
         }
 
         // internal transition
         void internal_transition () {
-            if (DEBUG) cout << "resp internal transition called" << endl;
+            if (DEBUG_RE) cout << "resp internal transition called" << endl;
             // TODO: simulate particle decay (possibly in another module)
             state.next_internal = numeric_limits<TIME>::infinity();  // the response module should not have internal events
-            if (DEBUG) cout << "resp internal transition finished" << endl;
+            if (DEBUG_RE) cout << "resp internal transition finished" << endl;
         }
 
         // external transition
         void external_transition (TIME e, typename make_message_bags<input_ports>::type mbs) {
-            if (DEBUG) cout << "resp external transition called" << endl;
+            if (DEBUG_RE) cout << "resp external transition called" << endl;
             if (get_messages<typename Responder_defs::impulse_in>(mbs).size() > 1) {
                 assert(false && "Responder received more than one concurrent message");
             }
             // Handle impulse messages
             for (const auto &x : get_messages<typename Responder_defs::impulse_in>(mbs)) {
-                if (DEBUG) cout << "responder received: " << x << endl;
+                if (DEBUG_RE) cout << "responder received: " << x << endl;
 
                 // x is a message object
 
@@ -103,54 +103,57 @@ template<typename TIME> class Responder {
                 for (int i = 0; i < x.data.size(); ++i) {
                     newVelocity.push_back(x.data[i] + (float)state.particle_data[to_string(x.particle_id)]["velocity"][i]);
                 }
-                
+
                 //cout << "resp: particle " << x.particle_id << " vel before impulse: " << state.particle_data[to_string(x.particle_id)] << endl;
                 //cout << "resp: adding impulse: " << vector_string<float>(x.impulse) << endl;
                 state.particle_data[to_string(x.particle_id)]["velocity"] = newVelocity;  // record velocity change in resp particle model
                 //cout << "resp: particle " << x.particle_id << " vel after impulse: " << state.particle_data[to_string(x.particle_id)] << endl;
-                // TODO: send msg so that detector can do the same
+                state.impulse.data = newVelocity;
+                state.impulse.particle_id = x.particle_id;
+
+                state.next_internal = 0;
             }
 
             //for (const auto &x : get_messages<typename Responder_defs::collision_in>(mbs)) {
                 // TODO: manage incoming collision messages
             //}
 
-            if (DEBUG) cout << "resp external transition finish" << endl;
+            if (DEBUG_RE) cout << "resp external transition finish" << endl;
         }
 
         // confluence transition
         void confluence_transition (TIME e, typename make_message_bags<input_ports>::type mbs) {
-            if (DEBUG) cout << "resp confluence transition called" << endl;
+            if (DEBUG_RE) cout << "resp confluence transition called" << endl;
             internal_transition();
             external_transition(TIME(), move(mbs));
-            if (DEBUG) cout << "resp confluence transition finishing" << endl;
+            if (DEBUG_RE) cout << "resp confluence transition finishing" << endl;
         }
 
         // output function
         typename make_message_bags<output_ports>::type output () const {
-            if (DEBUG) cout << "resp output called" << endl;
+            if (DEBUG_RE) cout << "resp output called" << endl;
             typename make_message_bags<output_ports>::type bags;
             vector<message_t> bag_port_out;
             bag_port_out.push_back(state.impulse);
-            get_messages<typename Responder_defs::impulse_out>(bags) = bag_port_out;
-            if (DEBUG) cout << "resp output returning" << endl;
+            get_messages<typename Responder_defs::response_out>(bags) = bag_port_out;
+            if (DEBUG_RE) cout << "resp output returning" << endl;
             return bags;
         }
 
         // time advance function
         TIME time_advance () const {
-            if (DEBUG) cout << "resp time advance called/returning" << endl;
+            if (DEBUG_RE) cout << "resp time advance called/returning" << endl;
             return state.next_internal;
         }
 
         friend ostringstream& operator<<(ostringstream& os, const typename Responder<TIME>::state_type& i) {
-            if (DEBUG) cout << "resp << called" << endl;
+            if (DEBUG_RE) cout << "resp << called" << endl;
             string result = "";
             for (auto impulse_comp : i.impulse.data) {
                 result += to_string(impulse_comp) + " ";
             }
-            os << "impulse: " << result;
-            if (DEBUG) cout << "resp << returning" << endl;
+            os << "velocity (p_id:" << i.impulse.particle_id << "): " << result;
+            if (DEBUG_RE) cout << "resp << returning" << endl;
             return os;
         }
 

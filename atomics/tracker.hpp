@@ -10,6 +10,8 @@
 #include <map>
 #include <vector>
 
+#include "../test/tags.hpp"  // debug tags
+
 #include "../data_structures/message.hpp"
 
 using namespace cadmium;
@@ -28,7 +30,7 @@ TODO:
 // Port definition
 struct Tracker_defs {
     struct response_in : public in_port<message_t> {};
-    struct response_out : public out_port<message_t> {};
+    struct response_out : public out_port<tracker_message_t> {};
     //struct departure_in : public in_port<___> {};
     //struct arrival_in : public in_port<___> {};
 };
@@ -49,47 +51,57 @@ template<typename TIME> class Tracker {
         struct state_type {
             // state information
             TIME next_internal;
-            map<int, vector<int>> particle_data;  // particle_id, {subV_id}
-            vector<float> velocity;
+            //map<int, vector<int>> particle_data;  // particle_id, {subV_id}
+            vector<tracker_message_t> messages;
+            map<int, vector<int>> particle_locations;
         };
         state_type state;
 
         Tracker () {
             // initialization
             // TODO: should be initialized from arguments
-            state.particle_data = {
-                {1, {1, 2}}
+            state.particle_locations = {
+                {1, {1}},
+                {2, {1}}
             };
         }
 
         // internal transition
         void internal_transition () {
-            // tracker module does not have internal events
             state.next_internal = numeric_limits<TIME>::infinity();
         }
 
         // external transition
         void external_transition (TIME e, typename make_message_bags<input_ports>::type mbs) {
+            if (DEBUG_TR) cout << "tr external transition called" << endl;
+            state.messages.clear();  // prepare messages vector
             if (get_messages<typename Tracker_defs::response_in>(mbs).size() > 1) {
-                assert(false && "Tracker received more than one concurrent message");
+                //assert(false && "Tracker received more than one concurrent message");
+                cout << "NOTE: Tracker received more than one concurrent message" << endl;
             }
             // Handle velocity messages from responder
             for (const auto &x : get_messages<typename Tracker_defs::response_in>(mbs)) {
-                state.velocity = x;
+                // create a message for each subV
+                for (auto subV_id : state.particle_locations[x.particle_id]) {
+                    state.messages.push_back(tracker_message_t(x, subV_id));
+                }
             }
+            if (DEBUG_TR) cout << "tr added messages: " << state.messages.size() << endl;
         }
 
         // confluence transition
         void confluence_transition (TIME e, typename make_message_bags<input_ports>::type mbs) {
-            //
+            internal_transition();
+            external_transition(TIME(), move(mbs));
         }
 
         // output function
         typename make_message_bags<output_ports>::type output () const {
             typename make_message_bags<output_ports>::type bags;
-            vector<message_t> bag_port_out;
-            bag_port_out.push_back(state.velocity);
-            get_messages<typename Tracker_defs::response_out>(bags) = bag_port_out;
+            //vector<tracker_message_t> bag_port_out;
+            //bag_port_out = state.messages;
+            //get_messages<typename Tracker_defs::response_out>(bags) = bag_port_out;
+            get_messages<typename Tracker_defs::response_out>(bags) = state.messages;
             return bags;
         }
 
@@ -97,6 +109,32 @@ template<typename TIME> class Tracker {
         TIME time_advance () const {
             return state.next_internal;
         }
-}
+
+        friend ostringstream& operator<<(ostringstream& os, const typename Tracker<TIME>::state_type& i) {
+            if (DEBUG_TR) cout << "tracker << called" << endl;
+            string result = "";
+            for (auto msg : i.messages) {
+                result += "[(pid:" + to_string(msg.particle_id) + ", sv_id:" + to_string(msg.subV_id) + ") ";
+                for (auto velocity_comp : msg.data) {
+                    result += to_string(velocity_comp) + " ";
+                }
+                result += "] ";
+            }
+            os << "velocities: " << result;
+            if (DEBUG_TR) cout << "tracker << returning" << endl;
+            return os;
+        }
+
+    private:
+
+        template <typename T>
+        string vector_string (vector<T> v) {
+            string result = "";
+            for (auto i : v) {
+                result += to_string(i) + " ";
+            }
+            return result;
+        }
+};
 
 #endif

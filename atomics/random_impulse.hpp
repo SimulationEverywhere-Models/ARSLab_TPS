@@ -16,10 +16,10 @@
 #include <utility>  // contains pair
 #include <queue>  // contains priority queue
 
+#include "../test/tags.hpp"  // debug tags
+
 #include "../data_structures/message.hpp"
 //#include "../data_structures/species.hpp"  // TODO: Get this data from a JSON
-
-#define DEBUG false
 
 using namespace cadmium;
 using namespace std;
@@ -50,7 +50,7 @@ template<typename TIME> class RandomImpulse {
         };
 
         struct state_type {
-            json particle_data;d
+            json particle_data;
             int dim;  // specifies the number of dimensions
             TIME next_impulse_time;
             message_t impulse;
@@ -59,16 +59,16 @@ template<typename TIME> class RandomImpulse {
         state_type state;
 
         RandomImpulse () {
-            if (DEBUG) cout << "RandomImpulse default constructor called" << endl;
+            if (DEBUG_RI) cout << "RandomImpulse default constructor called" << endl;
             // initialize test particles
         }
 
         RandomImpulse (int test) {
-            if (DEBUG) cout << "RandomImpulse non-default constructor called with value: " << test << endl;
+            if (DEBUG_RI) cout << "RandomImpulse non-default constructor called with value: " << test << endl;
         }
 
         RandomImpulse (json j, int dim) {
-            if (DEBUG) cout << "RandomImpulse constructor received JSON and dim: " << j << " --- " << dim << endl;
+            if (DEBUG_RI) cout << "RandomImpulse constructor received JSON and dim: " << j << " --- " << dim << endl;
             state.particle_data = j;
             state.dim = dim;
 
@@ -80,7 +80,7 @@ template<typename TIME> class RandomImpulse {
 
         // internal transition
         void internal_transition () {
-            if (DEBUG) cout << "ri internal transition called" << endl;
+            if (DEBUG_RI) cout << "ri internal transition called" << endl;
             int currId = state.particle_times.top().first;  // note the current particle's ID
             state.next_impulse_time = state.particle_times.top().second;  // note the current particle's impulse time
             state.particle_times.pop();  // remove current particle from queue
@@ -146,7 +146,7 @@ template<typename TIME> class RandomImpulse {
             // finish the impulse message
             state.impulse.data = next_impulse;
             state.impulse.particle_id = currId;
-            if (DEBUG) cout << "ri internal transition finishing" << endl;
+            if (DEBUG_RI) cout << "ri internal transition finishing" << endl;
         }
 
         // external transition
@@ -158,36 +158,36 @@ template<typename TIME> class RandomImpulse {
         // confluence transition
         // should never happen
         void confluence_transition (TIME e, typename make_message_bags<input_ports>::type mbs) {
-            if (DEBUG) cout << "ri confluence transition called" << endl;
+            if (DEBUG_RI) cout << "ri confluence transition called" << endl;
             internal_transition();
-            if (DEBUG) cout << "ri confluence transition finishing" << endl;
+            if (DEBUG_RI) cout << "ri confluence transition finishing" << endl;
         }
 
         // output function
         typename make_message_bags<output_ports>::type output () const {
-            if (DEBUG) cout << "ri output called" << endl;
+            if (DEBUG_RI) cout << "ri output called" << endl;
             typename make_message_bags<output_ports>::type bags;
             vector<message_t> bag_port_out;
             bag_port_out.push_back(state.impulse);
             get_messages<typename RandomImpulse_defs::impulse_out>(bags) = bag_port_out;
-            if (DEBUG) cout << "ri output returning" << endl;
+            if (DEBUG_RI) cout << "ri output returning" << endl;
             return bags;
         }
 
         // time advance function
         TIME time_advance () const {
-            if (DEBUG) cout << "ri time advance called/returning" << endl;
+            if (DEBUG_RI) cout << "ri time advance called/returning" << endl;
             return state.next_impulse_time;
         }
 
         friend ostringstream& operator<<(ostringstream& os, const typename RandomImpulse<TIME>::state_type& i) {
-            if (DEBUG) cout << "ri << called" << endl;
+            if (DEBUG_RI) cout << "ri << called" << endl;
             string result = "";
             for (auto impulse_comp : i.impulse.data) {
                 result += to_string(impulse_comp) + " ";
             }
-            os << "impulse: " << result;
-            if (DEBUG) cout << "ri << returning" << endl;
+            os << "impulse (p_id:" << i.impulse.particle_id << "): " << result;
+            if (DEBUG_RI) cout << "ri << returning" << endl;
             return os;
         }
     

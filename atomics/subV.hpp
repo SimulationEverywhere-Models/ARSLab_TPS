@@ -34,6 +34,7 @@ template<typename TIME> class SubV {
         */
 
         using input_ports = tuple<typename SubV_defs::response_in>;
+        using output_ports = tuple<typename SubV_defs::collision_out>;
 
         struct state_type {
             // state information
@@ -42,7 +43,7 @@ template<typename TIME> class SubV {
             TIME next_internal;  // next collision
             TIME current_time;  // current time within a subV module
             map<int, float> particle_times;  // particle_id, time  // last event for each particle in a subV module
-            collision_type next_collision;
+            collision_message_t next_collision;
         };
         state_type state;
 
@@ -73,20 +74,37 @@ template<typename TIME> class SubV {
 
         // external transition
         void external_transition (TIME e, typename make_message_bags<input_ports>::type mbs) {
+            
             // update the current time before doing work
             state.current_time += e;
 
-            // get the next collision
-            state.next_collision = get_next_collision();
+            // TODO: apply random impulses (may require checking the subV_id of the message)
+            if (get_messages<typename SubV_defs::response_in>(mbs).size() > 1) {
+                cout << "NOTE: subV received more than one concurrent message" << endl;
+            }
+            // Handle velocity messages from responder
+            for (const auto &x : get_messages<typename Tracker_defs::response_in>(mbs)) {
+                // if the message is relevant to this subV
+                if (find(x.subV_ids.begin(), x.subV_ids.end(), state.subV_id) != x.subV_ids.end()) {
+                    // get the next collision
+                    state.next_collision = get_next_collision();
 
-            // set next_internal
-            state.next_internal = state.next_collision.time;
+                    // set next_internal based on the next collision
+                    state.next_internal = state.next_collision.time;
+                }
+                else {
+                    // adjust next_interval to account for the elapsed time
+                    state.next_internal -= e;
+                }
+            }
 
+            // TODO: may not need to send a message in the above else case (may need a boolean flag for this)
         }
 
         // confluence transition
         void confluence_transition (TIME e, typename make_message_bags<input_ports>::type mbs) {
-            //
+            internal_transition();
+            external_transition(TIME(), move(mbs));
         }
 
         // output function
@@ -103,17 +121,11 @@ template<typename TIME> class SubV {
 
     private:
 
-        struct collision_type {
-            TIME time;
-            int p1_id;
-            int p2_id;
-        };
-
         const int delta_t_max = 10000000;  // used to avoid divide-by-zero errors (needs to be larger than any reasonable simulation runtime)
 
         // check all particles to determine when the next collision will occur and with which particles
-        collision_type get_next_collision () {
-            collision_type next_collision;
+        collision_message_t get_next_collision () {
+            collision_message_t next_collision;
             next_collision.time = numeric_limits<TIME>::infinity();
             TIME next_collision_time;
             for (auto it1 = particle_data.begin(); it1 != particle_data.end(); ++it1) {
@@ -121,9 +133,9 @@ template<typename TIME> class SubV {
                     if (it1 != it2) {
                         next_collision_time = detect(stoi(it1.key()), stoi(it2.key()));
                         if (next_collision_time < next_collision.time) {
-                            next_collision.time = next_collision_time;
                             next_collision.p1_id = stoi(it1.key());
                             next_collision.p2_id = stoi(it2.key());
+                            next_collision.time = next_collision_time;
                         }
                     }
                 }

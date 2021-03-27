@@ -51,9 +51,9 @@ template<typename TIME> class Tracker {
         struct state_type {
             // state information
             TIME next_internal;
-            //map<int, vector<int>> particle_data;  // particle_id, {subV_id}
-            vector<tracker_message_t> messages;
-            map<int, vector<int>> particle_locations;
+            //map<int, vector<int>> particle_data;
+            vector<tracker_message_t> message;
+            map<int, vector<int>> particle_locations;  // particle_id, {subV_id}
         };
         state_type state;
 
@@ -74,19 +74,15 @@ template<typename TIME> class Tracker {
         // external transition
         void external_transition (TIME e, typename make_message_bags<input_ports>::type mbs) {
             if (DEBUG_TR) cout << "tr external transition called" << endl;
-            state.messages.clear();  // prepare messages vector
             if (get_messages<typename Tracker_defs::response_in>(mbs).size() > 1) {
-                //assert(false && "Tracker received more than one concurrent message");
                 cout << "NOTE: Tracker received more than one concurrent message" << endl;
             }
             // Handle velocity messages from responder
             for (const auto &x : get_messages<typename Tracker_defs::response_in>(mbs)) {
-                // create a message for each subV
-                for (auto subV_id : state.particle_locations[x.particle_id]) {
-                    state.messages.push_back(tracker_message_t(x, subV_id));
-                }
+                // create a message and add relevant the subV_ids
+                state.message = tracker_message_t(x, state.particle_locations[x.particle_id]);
             }
-            if (DEBUG_TR) cout << "tr added messages: " << state.messages.size() << endl;
+            if (DEBUG_TR) cout << "tr added messages (# subVs:" << state.message.subV_ids.size() << ")" << endl;
         }
 
         // confluence transition
@@ -98,10 +94,9 @@ template<typename TIME> class Tracker {
         // output function
         typename make_message_bags<output_ports>::type output () const {
             typename make_message_bags<output_ports>::type bags;
-            //vector<tracker_message_t> bag_port_out;
-            //bag_port_out = state.messages;
-            //get_messages<typename Tracker_defs::response_out>(bags) = bag_port_out;
-            get_messages<typename Tracker_defs::response_out>(bags) = state.messages;
+            vector<tracker_message_t> bag_port_out;
+            bag_port_out = state.message;
+            get_messages<typename Tracker_defs::response_out>(bags) = bag_port_out;
             return bags;
         }
 

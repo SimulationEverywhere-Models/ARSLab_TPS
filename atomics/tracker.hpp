@@ -1,3 +1,9 @@
+/*
+tracker
+Responsibilities
+- route messages to the appropriate subV module(s)
+*/
+
 #ifndef TRACKER_HPP
 #define TRACKER_HPP
 
@@ -88,7 +94,7 @@ template<typename TIME> class Tracker {
         // confluence transition
         void confluence_transition (TIME e, typename make_message_bags<input_ports>::type mbs) {
             internal_transition();
-            external_transition(TIME(), move(mbs));
+            external_transition(e, move(mbs));
         }
 
         // output function

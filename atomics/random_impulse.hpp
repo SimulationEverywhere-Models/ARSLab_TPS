@@ -71,6 +71,7 @@ template<typename TIME> class RandomImpulse {
             if (DEBUG_RI) cout << "RandomImpulse constructor received JSON and dim: " << j << " --- " << dim << endl;
             state.particle_data = j;
             state.dim = dim;
+            state.impulse.is_ri = true;
 
             // go through particles and get the times at which they should receive RIs
             for (auto it = state.particle_data.begin(); it != state.particle_data.end(); ++it) {

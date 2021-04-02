@@ -53,17 +53,18 @@ istream& operator>> (istream& is, tracker_message_t& msg) {
 // Output stream
 template <typename TIME>
 ostream& operator<<(ostream& os, const collision_message_t<TIME>& msg) {
-    os << "p1_id:" << msg.p1_id
-       << ", p2_id:" << msg.p2_id
-       << ", delta_t:" << msg.time;
+    //os << "p1_id:" << msg.p1_id
+    //   << ", p2_id:" << msg.p2_id
+    //   << ", delta_t:" << msg.time;
+    os << "collision_message_t placeholder";
     return os;
 }
 
 // Input stream
 template <typename TIME>
 istream& operator>> (istream& is, collision_message_t<TIME>& msg) {
-    is >> msg.p1_id;
-    is >> msg.p2_id;
-    is >> msg.time;
+    //is >> msg.p1_id;
+    //is >> msg.p2_id;
+    //is >> msg.time;
     return is;
 }

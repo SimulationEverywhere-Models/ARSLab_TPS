@@ -114,8 +114,10 @@ template<typename TIME> class Responder {
                 state.next_internal = 0;
             }
 
+            // Handle collision messages
             //for (const auto &x : get_messages<typename Responder_defs::collision_in>(mbs)) {
                 // TODO: manage incoming collision messages
+                //state.next_internal = 0;
             //}
 
             if (DEBUG_RE) cout << "resp external transition finish" << endl;
@@ -125,7 +127,7 @@ template<typename TIME> class Responder {
         void confluence_transition (TIME e, typename make_message_bags<input_ports>::type mbs) {
             if (DEBUG_RE) cout << "resp confluence transition called" << endl;
             internal_transition();
-            external_transition(TIME(), move(mbs));
+            external_transition(e, move(mbs));
             if (DEBUG_RE) cout << "resp confluence transition finishing" << endl;
         }
 

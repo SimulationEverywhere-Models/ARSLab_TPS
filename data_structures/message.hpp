@@ -5,16 +5,18 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <map>
 
 using namespace std;
 
 struct message_t {
     message_t () {}
     message_t (vector<float> i_data) : data(i_data), particle_id(-1) {}
-    message_t (vector<float> i_data, int i_particle_id) : data(i_data), particle_id(i_particle_id) {}
+    message_t (vector<float> i_data, int i_particle_id) : data(i_data), particle_id(i_particle_id), is_ri(false) {}
 
     int particle_id;
     vector<float> data;
+    bool is_ri;
 };
 
 struct tracker_message_t : message_t {
@@ -30,12 +32,19 @@ struct tracker_message_t : message_t {
 template <typename TIME>
 struct collision_message_t {
     collision_message_t () {}
-    collision_message_t (int i_p1_id, int i_p2_id, TIME i_time) {} :
-            p1_id(i_p1_id), p2_id(i_p2_id), time(i_time) {}
+    //collision_message_t (int i_p1_id, int i_p2_id, TIME i_time) {} :
+    //        p1_id(i_p1_id), p2_id(i_p2_id), time(i_time), p1_pos({}), p2_pos({}) {}
 
-    int p1_id;
-    int p2_id;
+    map<int, vector<float>> positions;
     TIME time;
+
+    /*
+    int p1_id;
+    vector<float> p1_pos;  // updated position
+    int p2_id;
+    vector<float> p2_pos;  // updated position
+    TIME time;
+    */
 };
 
 istream& operator>> (istream& is, message_t& msg);

@@ -93,12 +93,12 @@ int main () {
     eics_TOP = {};
     dynamic::modeling::EOCs eocs_TOP;
     eocs_TOP = {
-        dynamic::translate::make_EOC<Responder_defs::response_out, top_out>("responder")
+        dynamic::translate::make_EOC<Responder_defs<TIME>::response_out, top_out>("responder")
     };
     dynamic::modeling::ICs ics_TOP;
     ics_TOP = {
-        dynamic::translate::make_IC<RandomImpulse_defs::impulse_out, Responder_defs::impulse_in>("random_impulse", "responder"),
-        dynamic::translate::make_IC<Responder_defs::response_out, detector_response_in>("responder", "detector")
+        dynamic::translate::make_IC<RandomImpulse_defs::impulse_out, Responder_defs<TIME>::impulse_in>("random_impulse", "responder"),
+        dynamic::translate::make_IC<Responder_defs<TIME>::response_out, detector_response_in>("responder", "detector")
     };
     shared_ptr<dynamic::modeling::coupled<TIME>> TOP;
     TOP = make_shared<dynamic::modeling::coupled<TIME>>(

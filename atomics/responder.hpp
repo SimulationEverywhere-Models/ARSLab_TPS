@@ -20,6 +20,7 @@ Current functionality:
 #include <nlohmann/json.hpp>
 
 #include "../test/tags.hpp"  // debug tags
+#include "../utilities/vector_utils.hpp"
 
 #include "../data_structures/message.hpp"
 
@@ -29,10 +30,11 @@ using namespace std;
 using json = nlohmann::json;
 
 // Port definition
+template<typename TIME>
 struct Responder_defs {
     //struct transition_in : public in_port<___> {};
     struct impulse_in : public in_port<message_t> {};
-    //struct collision_in : public in_port<___> {};
+    struct collision_in : public in_port<collision_message_t<TIME>> {};
     //struct attachment_out : public out_port<___> {};  // not applicable for now (tethering)
     //struct detachment_out : public out_port<___> {};  // not applicable for now (tethering)
     //struct impulse_out : public out_port<message_t> {};  // unsure of purpose (message type may be wrong)
@@ -58,15 +60,16 @@ template<typename TIME> class Responder {
                                    typename Responder_defs::restitution_out,
                                    typename Responder_defs::response_out>;
         */
-        using input_ports = tuple<typename Responder_defs::impulse_in>;
-        using output_ports = tuple<typename Responder_defs::response_out>;
+        using input_ports = tuple<typename Responder_defs<TIME>::impulse_in,
+                                  typename Responder_defs<TIME>::collision_in>;
+        using output_ports = tuple<typename Responder_defs<TIME>::response_out>;
 
         struct state_type {
             // particle mass, position, velocity
             //map
             json particle_data;
             TIME next_internal;
-            message_t impulse;
+            vector<message_t> messages;
         };
         state_type state;
 
@@ -90,35 +93,74 @@ template<typename TIME> class Responder {
         // external transition
         void external_transition (TIME e, typename make_message_bags<input_ports>::type mbs) {
             if (DEBUG_RE) cout << "resp external transition called" << endl;
-            if (get_messages<typename Responder_defs::impulse_in>(mbs).size() > 1) {
+            if (get_messages<typename Responder_defs<TIME>::impulse_in>(mbs).size() > 1) {
                 assert(false && "Responder received more than one concurrent message");
             }
             // Handle impulse messages
-            for (const auto &x : get_messages<typename Responder_defs::impulse_in>(mbs)) {
+            for (const auto &x : get_messages<typename Responder_defs<TIME>::impulse_in>(mbs)) {
                 if (DEBUG_RE) cout << "responder received: " << x << endl;
 
                 // x is a message object
 
                 vector<float> newVelocity;
+                /*
+                // add components of existing velocity and impulse
+                // TODO: use VectorUtils if possible
                 for (int i = 0; i < x.data.size(); ++i) {
                     newVelocity.push_back(x.data[i] + (float)state.particle_data[to_string(x.particle_id)]["velocity"][i]);
                 }
+                */
+
+                float particle_mass = state.particle_data[to_string(x.particle_id)]["mass"];
+                newVelocity = VectorUtils::element_op(state.particle_data[to_string(x.particle_id)]["velocity"],
+                                                      VectorUtils::element_dist(x.data, particle_mass, VectorUtils::divide),
+                                                      VectorUtils::add);
 
                 //cout << "resp: particle " << x.particle_id << " vel before impulse: " << state.particle_data[to_string(x.particle_id)] << endl;
                 //cout << "resp: adding impulse: " << vector_string<float>(x.impulse) << endl;
                 state.particle_data[to_string(x.particle_id)]["velocity"] = newVelocity;  // record velocity change in resp particle model
                 //cout << "resp: particle " << x.particle_id << " vel after impulse: " << state.particle_data[to_string(x.particle_id)] << endl;
-                state.impulse.data = newVelocity;
-                state.impulse.particle_id = x.particle_id;
+                state.messages.push_back(message_t(newVelocity, x.particle_id));
 
                 state.next_internal = 0;
             }
 
             // Handle collision messages
-            //for (const auto &x : get_messages<typename Responder_defs::collision_in>(mbs)) {
-                // TODO: manage incoming collision messages
-                //state.next_internal = 0;
-            //}
+            for (const auto &x : get_messages<typename Responder_defs<TIME>::collision_in>(mbs)) {
+
+                vector<int> p_ids;
+
+                // update positions (must happen before impulses are calculated)
+                // (also grab the particle IDs while we're at it)
+                for (const auto& [key, val] : x.positions) {
+                    state.particle_data[to_string(key)]["position"] = val;
+                    p_ids.push_back(key);  // store particle IDs
+                }
+                assert(p_ids.size() == 2);
+
+                // calculate impulse
+                float p1_mass = state.particle_data[to_string(p_ids[0])]["mass"];
+                float p2_mass = state.particle_data[to_string(p_ids[1])]["mass"];
+                vector<float> impulse = calcImpulse(x.positions[p_ids[0]],
+                                                    x.positions[p_ids[1]],
+                                                    p1_mass,
+                                                    p2_mass);
+
+                // calculate velocities
+                vector<float> p1_vel = VectorUtils::element_op(state.particle_data[to_string(p_ids[0])]["velocity"],
+                                                               VectorUtils::element_dist(impulse, p1_mass, VectorUtils::divide),
+                                                               VectorUtils::add);
+                vector<float> p2_vel = VectorUtils::element_op(state.particle_data[to_string(p_ids[1])]["velocity"],
+                                                               VectorUtils::element_dist(impulse, p2_mass, VectorUtils::divide),
+                                                               VectorUtils::subtract);
+
+                // set velocities
+                state.particle_data[to_string(p_ids[0])]["velocity"] = p1_vel;
+                state.particle_data[to_string(p_ids[1])]["velocity"] = p2_vel;
+
+                // set next internal
+                state.next_internal = 0;
+            }
 
             if (DEBUG_RE) cout << "resp external transition finish" << endl;
         }
@@ -136,8 +178,8 @@ template<typename TIME> class Responder {
             if (DEBUG_RE) cout << "resp output called" << endl;
             typename make_message_bags<output_ports>::type bags;
             vector<message_t> bag_port_out;
-            bag_port_out.push_back(state.impulse);
-            get_messages<typename Responder_defs::response_out>(bags) = bag_port_out;
+            bag_port_out = state.messages;
+            get_messages<typename Responder_defs<TIME>::response_out>(bags) = bag_port_out;
             if (DEBUG_RE) cout << "resp output returning" << endl;
             return bags;
         }
@@ -151,15 +193,44 @@ template<typename TIME> class Responder {
         friend ostringstream& operator<<(ostringstream& os, const typename Responder<TIME>::state_type& i) {
             if (DEBUG_RE) cout << "resp << called" << endl;
             string result = "";
-            for (auto impulse_comp : i.impulse.data) {
-                result += to_string(impulse_comp) + " ";
+            for (auto message : i.messages) {
+                result += "[(p_id:" + to_string(message.particle_id) + ") ";
+                for (auto message_comp : message.data) {
+                    result += to_string(message_comp) + " ";
+                }
+                result += "] ";
             }
-            os << "velocity (p_id:" << i.impulse.particle_id << "): " << result;
+            os << "velocities: " << result;
             if (DEBUG_RE) cout << "resp << returning" << endl;
             return os;
         }
 
     private:
+
+        // get the impulse after a collision
+        // masses are arguments to allow for combined masses (loading)
+        vector<float> calcImpulse (int p1_id, int p2_id, int p1_mass, int p2_mass) {
+            vector<float> result;
+
+            float c_restitute = 0.9;  // [0, 1]
+
+            // relative velocity of p1 and p2
+            vector<float> v_1_2 = VectorUtils::element_op(state.particle_data[to_string(p2_id)]["velocity"],
+                                                          state.particle_data[to_string(p1_id)]["velocity"],
+                                                          VectorUtils::subtract);
+
+            // unit vector pointing from p1 to p2
+            vector<float> u = VectorUtils::make_unit(VectorUtils::get_vect(state.particle_data[to_string(p2_id)]["position"],
+                                                                           state.particle_data[to_string(p1_id)]["position"]));
+
+            // calculate the component of the relative velocity which is along the vector u
+            vector<float> v_u = VectorUtils::get_proj(v_1_2, u);
+
+            // get impulse
+            result = VectorUtils::element_dist(v_u, (1 / ((1 / p1_mass) + (1 / p2_mass))) * (1 + c_restitute), VectorUtils::multiply);
+
+            return result;
+        }
 
         template <typename T>
         string vector_string (vector<T> v) {

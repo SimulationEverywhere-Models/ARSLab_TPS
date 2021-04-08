@@ -58,14 +58,14 @@ template<typename TIME> class Tracker {
             // state information
             TIME next_internal;
             //map<int, vector<int>> particle_data;
-            vector<tracker_message_t> message;
+            vector<tracker_message_t> messages;
             map<int, vector<int>> particle_locations;  // particle_id, {subV_id}
         };
         state_type state;
 
         Tracker () {
             // initialization
-            // TODO: should be initialized from arguments
+            // TODO: should be initialized or calculated from arguments
             state.particle_locations = {
                 {1, {1}},
                 {2, {1}}
@@ -74,21 +74,22 @@ template<typename TIME> class Tracker {
 
         // internal transition
         void internal_transition () {
+            state.messages.clear();
             state.next_internal = numeric_limits<TIME>::infinity();
         }
 
         // external transition
         void external_transition (TIME e, typename make_message_bags<input_ports>::type mbs) {
             if (DEBUG_TR) cout << "tr external transition called" << endl;
-            if (get_messages<typename Tracker_defs::response_in>(mbs).size() > 1) {
+            if (DEBUG_TR && get_messages<typename Tracker_defs::response_in>(mbs).size() > 1) {
                 cout << "NOTE: Tracker received more than one concurrent message" << endl;
             }
             // Handle velocity messages from responder
             for (const auto &x : get_messages<typename Tracker_defs::response_in>(mbs)) {
                 // create a message and add relevant the subV_ids
-                state.message = tracker_message_t(x, state.particle_locations[x.particle_id]);
+                state.messages.push_back(tracker_message_t(x, state.particle_locations[x.particle_id]));
             }
-            if (DEBUG_TR) cout << "tr added messages (# subVs:" << state.message.subV_ids.size() << ")" << endl;
+            if (DEBUG_TR) cout << "tr added messages (# messages:" << state.messages.size() << ")" << endl;
         }
 
         // confluence transition
@@ -101,7 +102,7 @@ template<typename TIME> class Tracker {
         typename make_message_bags<output_ports>::type output () const {
             typename make_message_bags<output_ports>::type bags;
             vector<tracker_message_t> bag_port_out;
-            bag_port_out = state.message;
+            bag_port_out = state.messages;
             get_messages<typename Tracker_defs::response_out>(bags) = bag_port_out;
             return bags;
         }
@@ -115,7 +116,7 @@ template<typename TIME> class Tracker {
             if (DEBUG_TR) cout << "tracker << called" << endl;
             string result = "";
             for (auto msg : i.messages) {
-                result += "[(pid:" + to_string(msg.particle_id) + ", sv_id:" + to_string(msg.subV_id) + ") ";
+                result += "[(p_id:" + to_string(msg.particle_id) + ", sv_ids:[" + vector_string<int>(msg.subV_ids) + "]) ";
                 for (auto velocity_comp : msg.data) {
                     result += to_string(velocity_comp) + " ";
                 }
@@ -129,7 +130,7 @@ template<typename TIME> class Tracker {
     private:
 
         template <typename T>
-        string vector_string (vector<T> v) {
+        static string vector_string (vector<T> v) {
             string result = "";
             for (auto i : v) {
                 result += to_string(i) + " ";

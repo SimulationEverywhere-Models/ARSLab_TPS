@@ -12,19 +12,18 @@ using namespace std;
 struct message_t {
     message_t () {}
     message_t (vector<float> i_data) : data(i_data), particle_id(-1) {}
-    message_t (vector<float> i_data, int i_particle_id) : data(i_data), particle_id(i_particle_id), is_ri(false) {}
+    message_t (vector<float> i_data, int i_particle_id) : data(i_data), particle_id(i_particle_id) {}
 
     int particle_id;
     vector<float> data;
-    bool is_ri;
 };
 
 struct tracker_message_t : message_t {
     tracker_message_t () {}
-    tracker_message_t (vector<float> i_data, int i_particle_id, vector<int> i_subV_id) :
-            message_t(i_data, i_particle_id), subV_id(i_subV_id) {}
-    tracker_message_t (message_t msg, vector<int> i_subV_id) :
-            message_t(msg.data, msg.particle_id), subV_id(i_subV_id) {}
+    tracker_message_t (vector<float> i_data, int i_particle_id, vector<int> i_subV_ids) :
+            message_t(i_data, i_particle_id), subV_ids(i_subV_ids) {}
+    tracker_message_t (message_t msg, vector<int> i_subV_ids) :
+            message_t(msg.data, msg.particle_id), subV_ids(i_subV_ids) {}
 
     vector<int> subV_ids;
 };

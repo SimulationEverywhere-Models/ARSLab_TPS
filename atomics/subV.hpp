@@ -18,6 +18,11 @@ Responsibilities
 #include <algorithm>  // max
 #include <map>
 
+#include "../test/tags.hpp"  // debug tags
+#include "../utilities/vector_utils.hpp"  // vector functions
+
+#include "../data_structures/message.hpp"
+
 using namespace cadmium;
 using namespace std;
 
@@ -56,7 +61,7 @@ template<typename TIME> class SubV {
 
         SubV () {
             // initialization
-            // TODO: subV_id should be initialized from arguments
+            // TODO: subV_id should be initialized or calculated from arguments
             state.subV_id = 1;
             state.current_time = TIME();
             state.next_internal = TIME();
@@ -102,31 +107,34 @@ template<typename TIME> class SubV {
             for (const auto &x : get_messages<typename SubV_defs::response_in>(mbs)) {
                 // if the message is relevant to this subV
                 if (find(x.subV_ids.begin(), x.subV_ids.end(), state.subV_id) != x.subV_ids.end()) {
-                    // update position of particle receiving new information (position must be called before velocity change)
-                    //state.particle_data[to_string(x.particle_id)]["position"] = position(x.particle_id);
-
                     // Maybe have a flag that determines if the message is an RI message (so no positions (or velocities?) are set until a non-RI message is received)
-                    // Calculations should not be done here because, for collisions, there will be twow associated messages received (one for each particle involved)
+                    // - No, RI messages should be treated the same
+
+                    // Calculations should not be done here because, for collisions, there will be two associated messages received (one for each particle involved)
                     // - Only particle_data information should be changed
 
                     // update related time value for particle (last time position changed)
                     state.particle_times[x.particle_id] = state.current_time;
 
-                    // incorporate positions calculated in internal transition
-                    state.particle_data[to_string(x.particle_id)]["position"] = state.next_collision.positions[x.particle_id];
+                    // incorporate positions calculated in internal transition or before RI data is used (position must be called before velocity change)
+                    // if position was calculated in the internal transition (ie. a particle involved in a collision)
+                    if (state.next_collision.positions.find(x.particle_id) != state.next_collision.positions.end()) {
+                        state.particle_data[to_string(x.particle_id)]["position"] = state.next_collision.positions[x.particle_id];
+                    }
+                    else {
+                        state.particle_data[to_string(x.particle_id)]["position"] = position(x.particle_id);
+                    }
+
+                    // report position to the command line
+                    cout << "subV: " << state.subV_id << ", time: " << state.current_time << ", p_id: " << x.particle_id << ", position:" << endl;
 
                     // incorporate newly received velocity
                     state.particle_data[to_string(x.particle_id)]["velocity"] = x.data;
 
-                    // get the next collision
-                    //state.next_collision = get_next_collision();
-
-                    // set next_internal based on the next collision
-                    state.next_internal = 0;  //state.next_collision.time;
+                    // set next_internal to zero to immediately calculate the next collision
+                    state.next_internal = 0;
                 }
             }
-
-            // TODO: may not need to send a message in the above else case (may need a boolean flag for this)
         }
 
         // confluence transition
@@ -147,6 +155,21 @@ template<typename TIME> class SubV {
         // time advance function
         TIME time_advance () const {
             return state.current_time + state.next_internal;
+        }
+
+        friend ostringstream& operator<<(ostringstream& os, const typename SubV<TIME>::state_type& i) {
+            if (DEBUG_SV) cout << "subV << called" << endl;
+            string result = "";
+            for (auto p_id = i.particle_data.begin(); p_id != i.particle_data.end(); ++p_id) {
+                result += "[(p_id:" + p_id.key();
+                for (auto position_comp : i.particle_data[p_id.key()]["position"]) {
+                    result += to_string(position_comp) + " ";
+                }
+                result += "] ";
+            }
+            os << "positions: " << result;
+            if (DEBUG_SV) cout << "subV << returning" << endl;
+            return os;
         }
 
     private:
@@ -185,13 +208,13 @@ template<typename TIME> class SubV {
             float p1_v = state.particle_data[to_string(p1_id)]["velocity"];
             float p2_v = state.particle_data[to_string(p2_id)]["velocity"];
 
-            float p2_v_sub_p1_v = vect_op(p2_v, p1_v, subtract);
-            float p2_u_sub_p1_u = vect_op(p2_u, p1_u, subtract);
+            float p2_v_sub_p1_v = VectorUtils::element_op(p2_v, p1_v, subtract);
+            float p2_u_sub_p1_u = VectorUtils::element_op(p2_u, p1_u, subtract);
 
             // assuming vector multiplication is the dot product
-            float a = sum_vect(dot_prod(p2_v_sub_p1_v, p2_v_sub_p1_v));
-            float b = 2 * sum_vect(dot_prod(p2_u_sub_p1_u, p2_v_sub_p1_v));
-            float c = sum_vect(dot_prod(p2_u_sub_p1_u, p2_u_sub_p1_u)) - (delta_blocking * delta_blocking);
+            float a = VectorUtils::sum(VectorUtils::dot_prod(p2_v_sub_p1_v, p2_v_sub_p1_v));
+            float b = 2 * VectorUtils::sum(VectorUtils::dot_prod(p2_u_sub_p1_u, p2_v_sub_p1_v));
+            float c = VectorUtils::sum(VectorUtils::dot_prod(p2_u_sub_p1_u, p2_u_sub_p1_u)) - (delta_blocking * delta_blocking);
             float d = (b * b) - (4 * a * c);
 
             if (b >= 0 || d < 0) return -1;
@@ -213,37 +236,6 @@ template<typename TIME> class SubV {
             }
             return vect_op(state.particle_data[to_string(p_id)]["position"], temp, add);
         }
-
-        /*** HELPER FUCNTIONS ***/
-
-        // sums all of the elements in a vector
-        float sum_vect (vector<float> v) const {
-            float result = 0;
-            for (auto i : v) {
-                result += i;
-            }
-            return result;
-        }
-
-        // calculates the dot product of two vectors
-        float dot_prod (vector<float> v1, vector<float> v2) const {
-            return sum_vect(vect_op(v1, v2, multiply));
-        }
-
-        // preform an operation on each of the elements in a vector
-        vector<float> vect_op (vector<float> v1, vector<float> v2, float (*operation)(float, float)) const {
-            if (v1.size() != v2.size()) return {};
-            vector<float> result;
-            for (int i = 0; i < v1.size(); ++i) {
-                result.push_back(operation(v1[i], v2[i]));
-            }
-            return result;
-        }
-
-        // basic operations
-        float add      (float i, float j) const { return i + j; }
-        float subtract (float i, float j) const { return i - j; }
-        float multiply (float i, float j) const { return i * j; }
-}
+};
 
 #endif

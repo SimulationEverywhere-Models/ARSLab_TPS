@@ -60,6 +60,8 @@ template<typename TIME> class SubV {
         state_type state;
 
         SubV () {
+            if (DEBUG_SV) cout << "SubV default constructor called" << endl;
+
             // initialization
             // TODO: subV_id should be initialized or calculated from arguments
             state.subV_id = 1;
@@ -74,11 +76,13 @@ template<typename TIME> class SubV {
 
         // internal transition
         void internal_transition () {
+            if (DEBUG_SV) cout << "subV internal transition called" << endl;
+
             // update the current time before doing work
             state.current_time += state.next_internal;  // next_internal was set by the previous call to int/ext transition
 
             // get the next collision
-            state.next_collision = get_next_collision();
+            next_collision_t next_collision = get_next_collision();
 
             // calculate positions but don't incorporate them until new velocities received
             // can't set until next_int (rather, when we get the corresponding velocity message back) in case RI sends a message (in which case, we throw away this calculation)
@@ -91,10 +95,13 @@ template<typename TIME> class SubV {
 
             // set next_internal
             state.next_internal = state.next_collision.time;
+
+            if (DEBUG_SV) cout << "subV internal transition finishing" << endl;
         }
 
         // external transition
         void external_transition (TIME e, typename make_message_bags<input_ports>::type mbs) {
+            if (DEBUG_SV) cout << "subV external transition called" << endl;
             
             // update the current time before doing work
             state.current_time += e;
@@ -121,6 +128,7 @@ template<typename TIME> class SubV {
                     if (state.next_collision.positions.find(x.particle_id) != state.next_collision.positions.end()) {
                         state.particle_data[to_string(x.particle_id)]["position"] = state.next_collision.positions[x.particle_id];
                     }
+                    // if an impulse is received from the RI module (the stored data will need to be recalculated, so it cannot be used)
                     else {
                         state.particle_data[to_string(x.particle_id)]["position"] = position(x.particle_id);
                     }
@@ -135,25 +143,32 @@ template<typename TIME> class SubV {
                     state.next_internal = 0;
                 }
             }
+
+            if (DEBUG_SV) cout << "subV external transition finishing" << endl;
         }
 
         // confluence transition
         void confluence_transition (TIME e, typename make_message_bags<input_ports>::type mbs) {
+            if (DEBUG_SV) cout << "subV confluence transition called" << endl;
             internal_transition();
             external_transition(e, move(mbs));
+            if (DEBUG_SV) cout << "subV confluence transition finishing" << endl;
         }
 
         // output function
         typename make_message_bags<output_ports>::type output () const {
+            if (DEBUG_SV) cout << "subV output called" << endl;
             typename make_message_bags<output_ports>::type bags;
             vector<collision_message_t> bag_port_out;
             bag_port_out = state.next_collision;
             get_messages<typename SubV_defs::collision_out>(bags) = bag_port_out;
+            if (DEBUG_SV) cout << "subV output returning" << endl;
             return bags;
         }
 
         // time advance function
         TIME time_advance () const {
+            if (DEBUG_SV) cout << "subV time advance called/returning" << endl;
             return state.current_time + state.next_internal;
         }
 
@@ -176,8 +191,14 @@ template<typename TIME> class SubV {
 
         const int delta_t_max = 10000000;  // used to avoid divide-by-zero errors (needs to be larger than any reasonable simulation runtime)
 
+        // contains information on the collision and the time at which it will happen
+        struct next_collision_t {
+            collision_message_t collision;
+            TIME time;
+        };
+
         // check all particles to determine when the next collision will occur and with which particles
-        collision_message_t get_next_collision () {
+        next_collision_t get_next_collision () {
             collision_message_t next_collision;
             next_collision.time = numeric_limits<TIME>::infinity();
             TIME next_collision_time;
@@ -188,8 +209,8 @@ template<typename TIME> class SubV {
                         if (next_collision_time >= 0 && next_collision_time < next_collision.time) {
                             //next_collision.p1_id = stoi(it1.key());
                             //next_collision.p2_id = stoi(it2.key());
-                            next_collision.positions[stoi(it1.key())] = {};
-                            next_collision.positions[stoi(it2.key())] = {};
+                            next_collision.collision.positions[stoi(it1.key())] = {};
+                            next_collision.collision.positions[stoi(it2.key())] = {};
                             next_collision.time = next_collision_time;
                         }
                     }

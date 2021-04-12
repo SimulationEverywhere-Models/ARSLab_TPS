@@ -10,7 +10,7 @@
 using namespace std;
 
 struct message_t {
-    message_t () {}
+    message_t () : data({}), particle_id(-1) {}
     message_t (vector<float> i_data) : data(i_data), particle_id(-1) {}
     message_t (vector<float> i_data, int i_particle_id) : data(i_data), particle_id(i_particle_id) {}
 
@@ -31,19 +31,8 @@ struct tracker_message_t : message_t {
 template <typename TIME>
 struct collision_message_t {
     collision_message_t () {}
-    //collision_message_t (int i_p1_id, int i_p2_id, TIME i_time) {} :
-    //        p1_id(i_p1_id), p2_id(i_p2_id), time(i_time), p1_pos({}), p2_pos({}) {}
 
     map<int, vector<float>> positions;
-    TIME time;
-
-    /*
-    int p1_id;
-    vector<float> p1_pos;  // updated position
-    int p2_id;
-    vector<float> p2_pos;  // updated position
-    TIME time;
-    */
 };
 
 istream& operator>> (istream& is, message_t& msg);
@@ -52,9 +41,18 @@ ostream& operator<< (ostream& os, const message_t& msg);
 istream& operator>> (istream& is, tracker_message_t& msg);
 ostream& operator<< (ostream& os, const tracker_message_t& msg);
 
+// Output stream
 template <typename TIME>
-istream& operator>> (istream& is, collision_message_t<TIME>& msg);
+ostream& operator<< (ostream& os, const collision_message_t<TIME>& msg) {
+    os << "collision_message_t placeholder";
+    return os;
+}
+
+// Input stream
 template <typename TIME>
-ostream& operator<< (ostream& os, const collision_message_t<TIME>& msg);
+istream& operator>> (istream& is, collision_message_t<TIME>& msg) {
+    // incomplete
+    return is;
+}
 
 #endif

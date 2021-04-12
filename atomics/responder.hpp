@@ -98,35 +98,25 @@ template<typename TIME> class Responder {
             }
             // Handle impulse messages
             for (const auto &x : get_messages<typename Responder_defs<TIME>::impulse_in>(mbs)) {
-                if (DEBUG_RE) cout << "responder received: " << x << endl;
+                if (DEBUG_RE) cout << "NOTE: responder received impulse: " << x << endl;
 
                 // x is a message object
 
-                vector<float> newVelocity;
-                /*
-                // add components of existing velocity and impulse
-                // TODO: use VectorUtils if possible
-                for (int i = 0; i < x.data.size(); ++i) {
-                    newVelocity.push_back(x.data[i] + (float)state.particle_data[to_string(x.particle_id)]["velocity"][i]);
-                }
-                */
+                if (x.particle_id == -1) continue;  // received an uninitialized message
 
+                vector<float> newVelocity;
                 float particle_mass = state.particle_data[to_string(x.particle_id)]["mass"];
                 newVelocity = VectorUtils::element_op(state.particle_data[to_string(x.particle_id)]["velocity"],
                                                       VectorUtils::element_dist(x.data, particle_mass, VectorUtils::divide),
                                                       VectorUtils::add);
 
-                //cout << "resp: particle " << x.particle_id << " vel before impulse: " << state.particle_data[to_string(x.particle_id)] << endl;
-                //cout << "resp: adding impulse: " << vector_string<float>(x.impulse) << endl;
                 state.particle_data[to_string(x.particle_id)]["velocity"] = newVelocity;  // record velocity change in resp particle model
-                //cout << "resp: particle " << x.particle_id << " vel after impulse: " << state.particle_data[to_string(x.particle_id)] << endl;
                 state.messages.push_back(message_t(newVelocity, x.particle_id));
-
-                state.next_internal = 0;
             }
 
             // Handle collision messages
             for (const auto &x : get_messages<typename Responder_defs<TIME>::collision_in>(mbs)) {
+                if (DEBUG_RE) cout << "responder received collision: " << x << endl;
 
                 vector<int> p_ids;
 
@@ -141,10 +131,7 @@ template<typename TIME> class Responder {
                 // calculate impulse
                 float p1_mass = state.particle_data[to_string(p_ids[0])]["mass"];
                 float p2_mass = state.particle_data[to_string(p_ids[1])]["mass"];
-                vector<float> impulse = calcImpulse(x.positions[p_ids[0]],
-                                                    x.positions[p_ids[1]],
-                                                    p1_mass,
-                                                    p2_mass);
+                vector<float> impulse = calc_impulse(p_ids[0], p_ids[1], p1_mass, p2_mass);
 
                 // calculate velocities
                 vector<float> p1_vel = VectorUtils::element_op(state.particle_data[to_string(p_ids[0])]["velocity"],
@@ -157,10 +144,10 @@ template<typename TIME> class Responder {
                 // set velocities
                 state.particle_data[to_string(p_ids[0])]["velocity"] = p1_vel;
                 state.particle_data[to_string(p_ids[1])]["velocity"] = p2_vel;
-
-                // set next internal
-                state.next_internal = 0;
             }
+
+            // set next internal
+            state.next_internal = 0;
 
             if (DEBUG_RE) cout << "resp external transition finish" << endl;
         }
@@ -209,7 +196,8 @@ template<typename TIME> class Responder {
 
         // get the impulse after a collision
         // masses are arguments to allow for combined masses (loading)
-        vector<float> calcImpulse (int p1_id, int p2_id, int p1_mass, int p2_mass) {
+        vector<float> calc_impulse (int p1_id, int p2_id, int p1_mass, int p2_mass) const {
+            if (DEBUG_RE) cout << "resp calc_impulse called" << endl;
             vector<float> result;
 
             float c_restitute = 0.9;  // [0, 1]
@@ -229,11 +217,12 @@ template<typename TIME> class Responder {
             // get impulse
             result = VectorUtils::element_dist(v_u, (1 / ((1 / p1_mass) + (1 / p2_mass))) * (1 + c_restitute), VectorUtils::multiply);
 
+            if (DEBUG_RE) cout << "resp calc_impulse returning" << endl;
             return result;
         }
 
         template <typename T>
-        string vector_string (vector<T> v) {
+        string vector_string (vector<T> v) const {
             string result = "";
             for (auto i : v) {
                 result += to_string(i) + " ";

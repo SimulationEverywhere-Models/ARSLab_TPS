@@ -64,6 +64,7 @@ template<typename TIME> class Tracker {
         state_type state;
 
         Tracker () {
+            if (DEBUG_TR) cout << "Tracker constructor called" << endl;
             // initialization
             // TODO: should be initialized or calculated from arguments
             state.particle_locations = {
@@ -74,8 +75,10 @@ template<typename TIME> class Tracker {
 
         // internal transition
         void internal_transition () {
+            if (DEBUG_TR) cout << "tr internal transition called" << endl;
             state.messages.clear();
             state.next_internal = numeric_limits<TIME>::infinity();
+            if (DEBUG_TR) cout << "tr internal transition finishing" << endl;
         }
 
         // external transition
@@ -89,26 +92,32 @@ template<typename TIME> class Tracker {
                 // create a message and add relevant the subV_ids
                 state.messages.push_back(tracker_message_t(x, state.particle_locations[x.particle_id]));
             }
-            if (DEBUG_TR) cout << "tr added messages (# messages:" << state.messages.size() << ")" << endl;
+            //if (DEBUG_TR) cout << "tr added messages (# messages:" << state.messages.size() << ")" << endl;
+            if (DEBUG_TR) cout << "tracker internal transition finishing" << endl;
         }
 
         // confluence transition
         void confluence_transition (TIME e, typename make_message_bags<input_ports>::type mbs) {
+            if (DEBUG_TR) cout << "tracker confluence transition called" << endl;
             internal_transition();
             external_transition(e, move(mbs));
+            if (DEBUG_TR) cout << "tracker confluence transition finishing" << endl;
         }
 
         // output function
         typename make_message_bags<output_ports>::type output () const {
+            if (DEBUG_TR) cout << "tracker output called" << endl;
             typename make_message_bags<output_ports>::type bags;
             vector<tracker_message_t> bag_port_out;
             bag_port_out = state.messages;
             get_messages<typename Tracker_defs::response_out>(bags) = bag_port_out;
+            if (DEBUG_TR) cout << "tracker output returning" << endl;
             return bags;
         }
 
         // time advance function
         TIME time_advance () const {
+            if (DEBUG_TR) cout << "tracker time advance called/returning" << endl;
             return state.next_internal;
         }
 

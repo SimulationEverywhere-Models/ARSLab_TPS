@@ -24,6 +24,9 @@ main_ri_responder_test.o: test/main_ri_responder_test.cpp
 main_ri_re_tr_test.o: test/main_ri_re_tr_test.cpp
 	$(CC) -g -c $(CFLAGS) $(INCLUDECADMIUM) $(INCLUDEDESTIMES) $(INCLUDEJSON) $(VARIABLES) test/main_ri_re_tr_test.cpp -o build/main_ri_re_tr_test.o
 
+main_iter_1_test.o: test/main_iter_1_test.cpp
+	$(CC) -g -c $(CFLAGS) $(INCLUDECADMIUM) $(INCLUDEDESTIMES) $(INCLUDEJSON) $(VARIABLES) test/main_iter_1_test.cpp -o build/main_iter_1_test.o
+
 ri: main_random_impulse_test.o message.o
 	$(CC) $(VARIABLES) -g -o bin/RI_TEST build/main_random_impulse_test.o build/message.o
 
@@ -33,8 +36,11 @@ ri_re: main_ri_responder_test.o message.o
 ri_re_tr: main_ri_re_tr_test.o message.o
 	$(CC) $(VARIABLES) -g -o bin/RI_RE_TR_TEST build/main_ri_re_tr_test.o build/message.o
 
+iter_1: main_iter_1_test.o message.o
+	$(CC) $(VARIABLES) -g -o bin/ITER_1_TEST build/main_iter_1_test.o build/message.o
+
 #TARGET TO COMPILE EVERYTHING (ABP SIMULATOR + TESTS TOGETHER)
-all: ri ri_re ri_re_tr
+all: ri ri_re ri_re_tr iter_1
 
 #CLEAN COMMANDS
 clean:

@@ -1,6 +1,11 @@
 #ifndef RANDOMIMPULSE_HPP
 #define RANDOMIMPULSE_HPP
 
+/*
+TODO:
+- Stop RI from sending invalid messages (instead of having the responder catch and ignore them).
+*/
+
 #include <cadmium/modeling/ports.hpp>
 #include <cadmium/modeling/message_bag.hpp>
 
@@ -17,6 +22,7 @@
 #include <queue>  // contains priority queue
 
 #include "../test/tags.hpp"  // debug tags
+#include "../utilities/vector_utils.hpp"  // vector functions
 
 #include "../data_structures/message.hpp"
 //#include "../data_structures/species.hpp"  // TODO: Get this data from a JSON
@@ -71,6 +77,7 @@ template<typename TIME> class RandomImpulse {
             if (DEBUG_RI) cout << "RandomImpulse constructor received JSON and dim: " << j << " --- " << dim << endl;
             state.particle_data = j;
             state.dim = dim;
+            state.impulse.is_ri = true;
 
             // go through particles and get the times at which they should receive RIs
             for (auto it = state.particle_data.begin(); it != state.particle_data.end(); ++it) {
@@ -81,6 +88,13 @@ template<typename TIME> class RandomImpulse {
         // internal transition
         void internal_transition () {
             if (DEBUG_RI) cout << "ri internal transition called" << endl;
+
+            if (!RI_ACTIVE) {
+                state.next_impulse_time = numeric_limits<TIME>::infinity();
+                if (DEBUG_RI) cout << "ri internal transition finishing (permanately passivated)" << endl;
+                return;
+            }
+
             int currId = state.particle_times.top().first;  // note the current particle's ID
             state.next_impulse_time = state.particle_times.top().second;  // note the current particle's impulse time
             state.particle_times.pop();  // remove current particle from queue
@@ -170,6 +184,7 @@ template<typename TIME> class RandomImpulse {
             vector<message_t> bag_port_out;
             bag_port_out.push_back(state.impulse);
             get_messages<typename RandomImpulse_defs::impulse_out>(bags) = bag_port_out;
+            if (DEBUG_RI) cout << "ri output sending impulse (p_id: " << state.impulse.particle_id << "): " << VectorUtils::get_string<float>(state.impulse.data) << endl;
             if (DEBUG_RI) cout << "ri output returning" << endl;
             return bags;
         }
@@ -182,11 +197,7 @@ template<typename TIME> class RandomImpulse {
 
         friend ostringstream& operator<<(ostringstream& os, const typename RandomImpulse<TIME>::state_type& i) {
             if (DEBUG_RI) cout << "ri << called" << endl;
-            string result = "";
-            for (auto impulse_comp : i.impulse.data) {
-                result += to_string(impulse_comp) + " ";
-            }
-            os << "impulse (p_id:" << i.impulse.particle_id << "): " << result;
+            os << "impulse (p_id:" << i.impulse.particle_id << "): " << VectorUtils::get_string<float>(i.impulse.data);
             if (DEBUG_RI) cout << "ri << returning" << endl;
             return os;
         }

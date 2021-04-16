@@ -2,28 +2,28 @@
     "species" : {
         "default" : {
             "mass" : 1,
-            "radius" : 5,
-            "tau" : 5,
-            "shape" : 5,
-            "mean" : 5
+            "radius" : 1,
+            "tau" : 0.2,
+            "shape" : 0.2,
+            "mean" : 0.2
         },
         "small" : {
             "mass" : 0.1,
-            "radius" : 1,
-            "tau" : 2,
-            "shape" : 2,
-            "mean" : 2
+            "radius" : 0.5,
+            "tau" : 0.1,
+            "shape" : 0.1,
+            "mean" : 0.1
         }
     },
     "particles" : {
         "1" : {
-            "position" : [0, 0],
-            "velocity" : [1, 1],
+            "position" : [-2, -2],
+            "velocity" : [0.5, 0.5],
             "species" : "default"
         },
         "2" : {
             "position" : [2, 2],
-            "velocity" : [-1, -1],
+            "velocity" : [-0.5, -0.5],
             "species" : "default"
         }
     }

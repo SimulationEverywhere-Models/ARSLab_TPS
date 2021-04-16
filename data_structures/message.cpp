@@ -14,7 +14,7 @@ ostream& operator<< (ostream& os, const message_t& msg) {
     for (auto i : msg.data) {
         result += to_string(i) + " ";
     }
-    os << result + "]";
+    os << result + ", is_ri: " << (msg.is_ri ? "true" : "false") << "]";
     return os;
 }
 
@@ -35,7 +35,7 @@ ostream& operator<< (ostream& os, const tracker_message_t& msg) {
     for (auto i : msg.data) {
         result += to_string(i) + " ";
     }
-    os << result + "]";
+    os << result + ", is_ri: " << (msg.is_ri ? "true" : "false") << "]";
     return os;
 }
 
@@ -50,4 +50,18 @@ istream& operator>> (istream& is, tracker_message_t& msg) {
 
 /*** collision_message_t ***/
 
-// Defined in header as it is a template
+// Output stream
+ostream& operator<< (ostream& os, const collision_message_t& msg) {
+    string result = "(pi_id, position) ";
+    for (const auto& [key, val] : msg.positions) {
+        result += "(" + to_string(key) + ", " + VectorUtils::get_string<float>(val) + ")";
+    }
+    os << result;
+    return os;
+}
+
+// Input stream
+istream& operator>> (istream& is, collision_message_t& msg) {
+    // incomplete
+    return is;
+}

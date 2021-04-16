@@ -17,6 +17,7 @@ Responsibilities
 #include <vector>
 
 #include "../test/tags.hpp"  // debug tags
+#include "../utilities/vector_utils.hpp"  // vector functions
 
 #include "../data_structures/message.hpp"
 
@@ -25,9 +26,9 @@ using namespace std;
 
 /*
 Functionality:
-- Currently just relays reponse messages
-- Does not worry about various subV modules as there will be only one for now
-- Communicates with lattice coupled model (which, for now, only contains one subV module)
+- Currently just relays reponse messages.
+- Does not worry about various subV modules as there will be only one for now.
+- Communicates with lattice coupled model (which, for now, only contains one subV module).
 
 TODO:
 - Add support for multiple subV modules
@@ -75,15 +76,15 @@ template<typename TIME> class Tracker {
 
         // internal transition
         void internal_transition () {
-            if (DEBUG_TR) cout << "tr internal transition called" << endl;
+            if (DEBUG_TR) cout << "tracker internal transition called" << endl;
             state.messages.clear();
             state.next_internal = numeric_limits<TIME>::infinity();
-            if (DEBUG_TR) cout << "tr internal transition finishing" << endl;
+            if (DEBUG_TR) cout << "tracker internal transition finishing" << endl;
         }
 
         // external transition
         void external_transition (TIME e, typename make_message_bags<input_ports>::type mbs) {
-            if (DEBUG_TR) cout << "tr external transition called" << endl;
+            if (DEBUG_TR) cout << "tracker external transition called" << endl;
             if (DEBUG_TR && get_messages<typename Tracker_defs::response_in>(mbs).size() > 1) {
                 cout << "NOTE: Tracker received more than one concurrent message" << endl;
             }
@@ -93,6 +94,7 @@ template<typename TIME> class Tracker {
                 state.messages.push_back(tracker_message_t(x, state.particle_locations[x.particle_id]));
             }
             //if (DEBUG_TR) cout << "tr added messages (# messages:" << state.messages.size() << ")" << endl;
+            state.next_internal = 0;
             if (DEBUG_TR) cout << "tracker internal transition finishing" << endl;
         }
 
@@ -124,27 +126,14 @@ template<typename TIME> class Tracker {
         friend ostringstream& operator<<(ostringstream& os, const typename Tracker<TIME>::state_type& i) {
             if (DEBUG_TR) cout << "tracker << called" << endl;
             string result = "";
+            // include information on which subV a particle is located in
             for (auto msg : i.messages) {
-                result += "[(p_id:" + to_string(msg.particle_id) + ", sv_ids:[" + vector_string<int>(msg.subV_ids) + "]) ";
-                for (auto velocity_comp : msg.data) {
-                    result += to_string(velocity_comp) + " ";
-                }
-                result += "] ";
+                result += "[(p_id:" + to_string(msg.particle_id) + ", sv_ids:[" + VectorUtils::get_string<int>(msg.subV_ids) + "]) ";
+                result += VectorUtils::get_string<float>(msg.data) + "] ";
             }
-            os << "velocities: " << result;
+            os << "velocity messages: " << result;
             if (DEBUG_TR) cout << "tracker << returning" << endl;
             return os;
-        }
-
-    private:
-
-        template <typename T>
-        static string vector_string (vector<T> v) {
-            string result = "";
-            for (auto i : v) {
-                result += to_string(i) + " ";
-            }
-            return result;
         }
 };
 

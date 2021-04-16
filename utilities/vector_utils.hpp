@@ -4,6 +4,7 @@
 #include <vector>
 #include <cmath>
 #include <limits>
+#include <string>
 
 using namespace std;
 
@@ -79,6 +80,15 @@ class VectorUtils {
         // get vector projection
         static vector<COMPONENT> get_proj (vector<COMPONENT> org, vector<COMPONENT> prj) {
             return element_dist(prj, dot_prod(org, prj), multiply);
+        }
+
+        template <typename T>
+        static string get_string (vector<T> v) {
+            string result = "";
+            for (auto i : v) {
+                result += to_string(i) + " ";
+            }
+            return result;
         }
 
         // basic operations

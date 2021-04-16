@@ -9,7 +9,7 @@
 #include <NDTime.hpp>
 
 // Message structures
-#include "../data_structures/impulse_message.hpp"
+#include "../data_structures/message.hpp"
 
 // Atomic model headers
 #include <cadmium/basic_model/pdevs/iestream.hpp>  // atomic model for inputs
@@ -18,23 +18,37 @@
 // C++ libraries
 #include <iostream>
 #include <string>
+#include <nlohmann/json.hpp>  // Used to parse JSON files and manipulate the resulting data
+#include <fstream>  // Used to read from files
+#include <map>
 
 using namespace std;
 using namespace cadmium;
 using namespace cadmium::basic_models::pdevs;
 
+using json = nlohmann::json;
 using TIME = float;
+
+/*** Forward References ***/
+json prepParticlesJSON (json&, vector<string>, vector<string>);
 
 /*** Define input ports for coupled models ***/
 // no input ports
 
 /*** Define output ports for coupled models ***/
-struct top_out: public out_port<impulse_message_t>{};
+struct top_out: public out_port<message_t>{};
 
 int main () {
+    // Get initial particle information prepared
+    ifstream ifs("../input/config.json");
+    json configJson = json::parse(ifs);
+    int dim = configJson["particles"][configJson["particles"].begin().key()]["position"].size();  // get number of dimensions
+    json ri_particles = prepParticlesJSON(configJson, {}, {"mass", "tau", "shape", "mean"});
+
     /*** RI atomic model instantiation ***/
     shared_ptr<dynamic::modeling::model> random_impulse;
-    random_impulse = dynamic::translate::make_dynamic_atomic_model<RandomImpulse, TIME>("random_impulse");
+    random_impulse = dynamic::translate::make_dynamic_atomic_model<RandomImpulse, TIME, json, int>
+            ("random_impulse", move(ri_particles), move(dim));
 
     /*** TOP MODEL ***/
     dynamic::modeling::Ports iports_TOP;
@@ -82,4 +96,23 @@ int main () {
     //r.run_until(NDTime("00:05:00:000"));
     r.run_until(TIME(100));
     return 0;
+}
+
+// args: config JSON, necessary particle element names, necessary species element names
+// return: JSON of format {id : {elements}, id : {elements}, ...}
+json prepParticlesJSON (json& j, vector<string> particle_elements, vector<string> species_elements) {
+    json result;
+    string currSpecies;
+    for (auto it = j["particles"].begin(); it != j["particles"].end(); ++it) {
+        // prune particle information
+        for (auto element : particle_elements) {
+            result[it.key()][element] = j["particles"][it.key()][element];
+        }
+        // add necessary species information
+        for (auto element : species_elements) {
+            currSpecies = j["particles"][it.key()]["species"];
+            result[it.key()][element] = j["species"][currSpecies][element];
+        }
+    }
+    return result;
 }

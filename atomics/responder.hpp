@@ -3,7 +3,11 @@
 
 /*
 Current functionality:
-- Relay impulse messages from the impulse_in port through the responder_out port
+- Relay impulse messages from the impulse_in port through the responder_out port.
+
+Notes:
+- Positions in this module are not guarenteed to be up to date if the RI module is active since the
+  responder cannot calculate positions on its own and subV does not report back to this module.
 */
 
 #include <cadmium/modeling/ports.hpp>
@@ -20,7 +24,7 @@ Current functionality:
 #include <nlohmann/json.hpp>
 
 #include "../test/tags.hpp"  // debug tags
-#include "../utilities/vector_utils.hpp"
+#include "../utilities/vector_utils.hpp"  // vector functions
 
 #include "../data_structures/message.hpp"
 
@@ -30,11 +34,10 @@ using namespace std;
 using json = nlohmann::json;
 
 // Port definition
-template<typename TIME>
 struct Responder_defs {
     //struct transition_in : public in_port<___> {};
     struct impulse_in : public in_port<message_t> {};
-    struct collision_in : public in_port<collision_message_t<TIME>> {};
+    struct collision_in : public in_port<collision_message_t> {};
     //struct attachment_out : public out_port<___> {};  // not applicable for now (tethering)
     //struct detachment_out : public out_port<___> {};  // not applicable for now (tethering)
     //struct impulse_out : public out_port<message_t> {};  // unsure of purpose (message type may be wrong)
@@ -60,9 +63,9 @@ template<typename TIME> class Responder {
                                    typename Responder_defs::restitution_out,
                                    typename Responder_defs::response_out>;
         */
-        using input_ports = tuple<typename Responder_defs<TIME>::impulse_in,
-                                  typename Responder_defs<TIME>::collision_in>;
-        using output_ports = tuple<typename Responder_defs<TIME>::response_out>;
+        using input_ports = tuple<typename Responder_defs::impulse_in,
+                                  typename Responder_defs::collision_in>;
+        using output_ports = tuple<typename Responder_defs::response_out>;
 
         struct state_type {
             // particle mass, position, velocity
@@ -86,6 +89,7 @@ template<typename TIME> class Responder {
         void internal_transition () {
             if (DEBUG_RE) cout << "resp internal transition called" << endl;
             // TODO: simulate particle decay (possibly in another module)
+            state.messages.clear();  // can be done here since output is called before internal transition in Cadmium
             state.next_internal = numeric_limits<TIME>::infinity();  // the response module should not have internal events
             if (DEBUG_RE) cout << "resp internal transition finished" << endl;
         }
@@ -93,14 +97,12 @@ template<typename TIME> class Responder {
         // external transition
         void external_transition (TIME e, typename make_message_bags<input_ports>::type mbs) {
             if (DEBUG_RE) cout << "resp external transition called" << endl;
-            if (get_messages<typename Responder_defs<TIME>::impulse_in>(mbs).size() > 1) {
+            if (get_messages<typename Responder_defs::impulse_in>(mbs).size() > 1) {
                 assert(false && "Responder received more than one concurrent message");
             }
-            // Handle impulse messages
-            for (const auto &x : get_messages<typename Responder_defs<TIME>::impulse_in>(mbs)) {
+            // Handle impulse messages from RI
+            for (const auto &x : get_messages<typename Responder_defs::impulse_in>(mbs)) {
                 if (DEBUG_RE) cout << "NOTE: responder received impulse: " << x << endl;
-
-                // x is a message object
 
                 if (x.particle_id == -1) continue;  // received an uninitialized message
 
@@ -111,12 +113,12 @@ template<typename TIME> class Responder {
                                                       VectorUtils::add);
 
                 state.particle_data[to_string(x.particle_id)]["velocity"] = newVelocity;  // record velocity change in resp particle model
-                state.messages.push_back(message_t(newVelocity, x.particle_id));
+                state.messages.push_back(message_t(newVelocity, x.particle_id, true));  // boolean sets is_ri flag
             }
 
             // Handle collision messages
-            for (const auto &x : get_messages<typename Responder_defs<TIME>::collision_in>(mbs)) {
-                if (DEBUG_RE) cout << "responder received collision: " << x << endl;
+            for (const auto &x : get_messages<typename Responder_defs::collision_in>(mbs)) {
+                if (DEBUG_RE) cout << "resp external transition: responder received collision: " << x << endl;
 
                 vector<int> p_ids;
 
@@ -126,7 +128,8 @@ template<typename TIME> class Responder {
                     state.particle_data[to_string(key)]["position"] = val;
                     p_ids.push_back(key);  // store particle IDs
                 }
-                assert(p_ids.size() == 2);
+
+                if (p_ids.size() != 2) continue;  // received an uninitialized or malformed message
 
                 // calculate impulse
                 float p1_mass = state.particle_data[to_string(p_ids[0])]["mass"];
@@ -141,9 +144,22 @@ template<typename TIME> class Responder {
                                                                VectorUtils::element_dist(impulse, p2_mass, VectorUtils::divide),
                                                                VectorUtils::subtract);
 
+                if (DEBUG_RE) {
+                    cout << "impulse calculation and application:" << endl;
+                    cout << "| resp external transition: before setting calculated velocities: (p_id: " << p_ids[0] << ") " << VectorUtils::get_string<float>(state.particle_data[to_string(p_ids[0])]["velocity"]) << endl;
+                    cout << "| resp external transition: before setting calculated velocities: (p_id: " << p_ids[1] << ") " << VectorUtils::get_string<float>(state.particle_data[to_string(p_ids[1])]["velocity"]) << endl;
+                    cout << "| resp external transition: calculated impulse: " << VectorUtils::get_string<float>(impulse) << endl;
+                    cout << "| resp external transition: new velocity: (p_id: " << p_ids[0] << ") " << VectorUtils::get_string<float>(p1_vel) << endl;
+                    cout << "| resp external transition: new velocity: (p_id: " << p_ids[1] << ") " << VectorUtils::get_string<float>(p2_vel) << endl;
+                }
+
                 // set velocities
                 state.particle_data[to_string(p_ids[0])]["velocity"] = p1_vel;
                 state.particle_data[to_string(p_ids[1])]["velocity"] = p2_vel;
+
+                // prepare messages
+                state.messages.push_back(message_t(p1_vel, p_ids[0]));
+                state.messages.push_back(message_t(p2_vel, p_ids[1]));
             }
 
             // set next internal
@@ -166,7 +182,14 @@ template<typename TIME> class Responder {
             typename make_message_bags<output_ports>::type bags;
             vector<message_t> bag_port_out;
             bag_port_out = state.messages;
-            get_messages<typename Responder_defs<TIME>::response_out>(bags) = bag_port_out;
+            get_messages<typename Responder_defs::response_out>(bags) = bag_port_out;
+            if (DEBUG_RE) {
+                cout << "resp output sending: ";
+                for (auto i : state.messages) {
+                    cout << "{" << i << "}";
+                }
+                cout << endl;
+            }
             if (DEBUG_RE) cout << "resp output returning" << endl;
             return bags;
         }
@@ -179,15 +202,18 @@ template<typename TIME> class Responder {
 
         friend ostringstream& operator<<(ostringstream& os, const typename Responder<TIME>::state_type& i) {
             if (DEBUG_RE) cout << "resp << called" << endl;
-            string result = "";
+            string result = "particles: ";
+            for (auto p_id = i.particle_data.begin(); p_id != i.particle_data.end(); ++p_id) {
+                result += "[(p_id:" + p_id.key() + "): ";
+                result += "pos[" + VectorUtils::get_string<float>(i.particle_data[p_id.key()]["position"]) + "], ";
+                result += "vel[" + VectorUtils::get_string<float>(i.particle_data[p_id.key()]["velocity"]) + "]]";
+            }
+            result += ", velocity messages: ";
             for (auto message : i.messages) {
                 result += "[(p_id:" + to_string(message.particle_id) + ") ";
-                for (auto message_comp : message.data) {
-                    result += to_string(message_comp) + " ";
-                }
-                result += "] ";
+                result += VectorUtils::get_string<float>(message.data) + "] ";
             }
-            os << "velocities: " << result;
+            os << result;
             if (DEBUG_RE) cout << "resp << returning" << endl;
             return os;
         }
@@ -196,7 +222,7 @@ template<typename TIME> class Responder {
 
         // get the impulse after a collision
         // masses are arguments to allow for combined masses (loading)
-        vector<float> calc_impulse (int p1_id, int p2_id, int p1_mass, int p2_mass) const {
+        vector<float> calc_impulse (int p1_id, int p2_id, float p1_mass, float p2_mass) const {
             if (DEBUG_RE) cout << "resp calc_impulse called" << endl;
             vector<float> result;
 
@@ -218,15 +244,6 @@ template<typename TIME> class Responder {
             result = VectorUtils::element_dist(v_u, (1 / ((1 / p1_mass) + (1 / p2_mass))) * (1 + c_restitute), VectorUtils::multiply);
 
             if (DEBUG_RE) cout << "resp calc_impulse returning" << endl;
-            return result;
-        }
-
-        template <typename T>
-        string vector_string (vector<T> v) const {
-            string result = "";
-            for (auto i : v) {
-                result += to_string(i) + " ";
-            }
             return result;
         }
 };

@@ -95,7 +95,7 @@ template<typename TIME> class Tracker {
             }
             //if (DEBUG_TR) cout << "tr added messages (# messages:" << state.messages.size() << ")" << endl;
             state.next_internal = 0;
-            if (DEBUG_TR) cout << "tracker internal transition finishing" << endl;
+            if (DEBUG_TR) cout << "tracker external transition finishing" << endl;
         }
 
         // confluence transition

@@ -25,6 +25,11 @@
             "position" : [2, 2],
             "velocity" : [-0.5, -0.5],
             "species" : "default"
+        },
+        "3" : {
+            "position" : [3, -5],
+            "velocity" : [-0.5, 0],
+            "species" : "default"
         }
     }
 }

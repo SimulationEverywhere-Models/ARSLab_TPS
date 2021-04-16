@@ -55,7 +55,7 @@ template<typename TIME> class SubV {
             // state information
             json particle_data;  // particle_id, {postition, velocity, radius}  // needs information on last collision
             int subV_id;
-            TIME next_internal;  // next collision
+            TIME next_internal;
             TIME current_time;  // current time within a subV module
             map<int, float> particle_times;  // particle_id, time  // last event for each particle in a subV module
             collision_message_t next_collision;
@@ -110,8 +110,8 @@ template<typename TIME> class SubV {
             // calculate positions but don't incorporate them until new velocities received
             // can't set until next_int (rather, when we get the corresponding velocity message back) in case RI sends a message (in which case, we throw away this calculation)
             for (auto it = state.next_collision.positions.begin(); it != state.next_collision.positions.end(); ++it) {
-                state.next_collision.positions[it->first] = position(it->first, next_collision_data.time);
-                if (DEBUG_SV) cout << "subV internal transition: setting message position: " << VectorUtils::get_string<float>(position(it->first, next_collision_data.time)) << endl;
+                state.next_collision.positions[it->first] = position(it->first, state.current_time + next_collision_data.time);
+                if (DEBUG_SV) cout << "subV internal transition: setting message position: " << VectorUtils::get_string<float>(state.next_collision.positions[it->first]) << endl;
             }
             assert(state.next_collision.positions.size() == 2 || state.next_collision.positions.size() == 0);  // 0 if inital call without receiving first
 
@@ -251,8 +251,6 @@ template<typename TIME> class SubV {
                     if (it1 != it2) {
                         next_collision_time = detect(stoi(it1.key()), stoi(it2.key()));
                         if (next_collision_time >= 0 && next_collision_time < next_collision.time) {
-                            //next_collision.p1_id = stoi(it1.key());
-                            //next_collision.p2_id = stoi(it2.key());
                             next_collision.collision.positions[stoi(it1.key())] = {};
                             next_collision.collision.positions[stoi(it2.key())] = {};
                             next_collision.time = next_collision_time;
@@ -288,6 +286,7 @@ template<typename TIME> class SubV {
 
             if (DEBUG_SV) {
                 cout << "detection information:" << endl;
+                cout << "| IDs: p1: " << p1_id << ", p2: " << p2_id << endl;
                 cout << "| p1_u: " << VectorUtils::get_string<float>(p1_u) << ", p2_u: " << VectorUtils::get_string<float>(p2_u) << endl;
                 cout << "| p1_v: " << VectorUtils::get_string<float>(p1_v) << ", p2_v: " << VectorUtils::get_string<float>(p2_v) << endl;
                 cout << "| a: " << a << ", b: " << b << ", c: " << c << endl;
@@ -302,21 +301,22 @@ template<typename TIME> class SubV {
 
             if (numer >= denom * delta_t_max) return -1;
 
+            if (DEBUG_SV) cout << "| next collision between particles: " << numer / denom << endl;
+
             return numer / denom;  // time until next collision between p1_id and p2_id
         }
 
         // retrieve the position of a particle at a certain amount of time in the future
+        // time is the time at which we want to know the particle's position
         vector<float> position (int p_id, TIME time) {
-            vector <float> temp;
-            for (const float& i : state.particle_data[to_string(p_id)]["velocity"]) {
-                temp.push_back(i * time);
-            }
+            TIME desired_time = time - state.particle_times[p_id];
+            vector <float> temp = VectorUtils::element_dist(state.particle_data[to_string(p_id)]["velocity"], desired_time, VectorUtils::multiply);
             return VectorUtils::element_op(state.particle_data[to_string(p_id)]["position"], temp, VectorUtils::add);
         }
 
         // retrieve the position of a particle at the current time
         vector<float> position (int p_id) {
-            return position(p_id, state.current_time - state.particle_times[p_id]);
+            return position(p_id, state.current_time);
         }
 };
 

@@ -70,7 +70,8 @@ template<typename TIME> class Tracker {
             // TODO: should be initialized or calculated from arguments
             state.particle_locations = {
                 {1, {1}},
-                {2, {1}}
+                {2, {1}},
+                {3, {1}}
             };
         }
 

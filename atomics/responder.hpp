@@ -205,13 +205,13 @@ template<typename TIME> class Responder {
             string result = "particles: ";
             for (auto p_id = i.particle_data.begin(); p_id != i.particle_data.end(); ++p_id) {
                 result += "[(p_id:" + p_id.key() + "): ";
-                result += "pos[" + VectorUtils::get_string<float>(i.particle_data[p_id.key()]["position"]) + "], ";
-                result += "vel[" + VectorUtils::get_string<float>(i.particle_data[p_id.key()]["velocity"]) + "]]";
+                result += "pos" + VectorUtils::get_string<float>(i.particle_data[p_id.key()]["position"], true) + ", ";
+                result += "vel" + VectorUtils::get_string<float>(i.particle_data[p_id.key()]["velocity"], true) + "]";
             }
             result += ", velocity messages: ";
             for (auto message : i.messages) {
-                result += "[(p_id:" + to_string(message.particle_id) + ") ";
-                result += VectorUtils::get_string<float>(message.data) + "] ";
+                result += "[(p_id:" + to_string(message.particle_id) + "): ";
+                result += "vel" + VectorUtils::get_string<float>(message.data, true) + "] ";
             }
             os << result;
             if (DEBUG_RE) cout << "resp << returning" << endl;

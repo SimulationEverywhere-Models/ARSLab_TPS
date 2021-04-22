@@ -83,12 +83,21 @@ class VectorUtils {
         }
 
         template <typename T>
-        static string get_string (vector<T> v) {
+        static string get_string (vector<T> v, bool brackets) {
             string result = "";
-            for (auto i : v) {
-                result += to_string(i) + " ";
+            for (int i = 0; i < v.size(); ++i) {
+                result += to_string(v[i]);
+                if (i != v.size() - 1) {
+                    result += " ";
+                }
             }
+            if (brackets) return "<" + result + ">";
             return result;
+        }
+
+        template <typename T>
+        static string get_string (vector<T> v) {
+            return get_string<T>(v, false);
         }
 
         // basic operations

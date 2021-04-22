@@ -223,8 +223,8 @@ template<typename TIME> class SubV {
             string result = "particles: ";
             for (auto p_id = i.particle_data.begin(); p_id != i.particle_data.end(); ++p_id) {
                 result += "[(p_id:" + p_id.key() + "): ";
-                result += "pos[" + VectorUtils::get_string<float>(i.particle_data[p_id.key()]["position"]) + "], ";
-                result += "vel[" + VectorUtils::get_string<float>(i.particle_data[p_id.key()]["velocity"]) + "]]";
+                result += "pos" + VectorUtils::get_string<float>(i.particle_data[p_id.key()]["position"], true) + ", ";
+                result += "vel" + VectorUtils::get_string<float>(i.particle_data[p_id.key()]["velocity"], true) + "]";
             }
             os << result;
             if (DEBUG_SV) cout << "subV << returning" << endl;

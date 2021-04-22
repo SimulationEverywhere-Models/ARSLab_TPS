@@ -130,7 +130,7 @@ template<typename TIME> class Tracker {
             // include information on which subV a particle is located in
             for (auto msg : i.messages) {
                 result += "[(p_id:" + to_string(msg.particle_id) + ", sv_ids:[" + VectorUtils::get_string<int>(msg.subV_ids) + "]) ";
-                result += VectorUtils::get_string<float>(msg.data) + "] ";
+                result += VectorUtils::get_string<float>(msg.data, true) + "] ";
             }
             os << "velocity messages: " << result;
             if (DEBUG_TR) cout << "tracker << returning" << endl;

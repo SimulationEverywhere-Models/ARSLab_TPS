@@ -10,10 +10,8 @@
 
 // Output stream
 ostream& operator<< (ostream& os, const message_t& msg) {
-    string result = "id:" + to_string(msg.particle_id) + " [";
-    for (auto i : msg.data) {
-        result += to_string(i) + " ";
-    }
+    string result = "(p_id:" + to_string(msg.particle_id) + "): [";
+    result += VectorUtils::get_string<float>(msg.data, true);
     os << result + ", is_ri: " << (msg.is_ri ? "true" : "false") << "]";
     return os;
 }
@@ -31,10 +29,8 @@ istream& operator>> (istream& is, message_t& msg) {
 
 // Output stream
 ostream& operator<< (ostream& os, const tracker_message_t& msg) {
-    string result = "id:" + to_string(msg.particle_id) + " [";
-    for (auto i : msg.data) {
-        result += to_string(i) + " ";
-    }
+    string result = "(p_id:" + to_string(msg.particle_id) + "): [";
+    result += VectorUtils::get_string<float>(msg.data, true);
     os << result + ", is_ri: " << (msg.is_ri ? "true" : "false") << "]";
     return os;
 }
@@ -52,9 +48,9 @@ istream& operator>> (istream& is, tracker_message_t& msg) {
 
 // Output stream
 ostream& operator<< (ostream& os, const collision_message_t& msg) {
-    string result = "(pi_id, position) ";
+    string result = "";
     for (const auto& [key, val] : msg.positions) {
-        result += "(" + to_string(key) + ", " + VectorUtils::get_string<float>(val) + ")";
+        result += "[(p_id:" + to_string(key) + "): " + VectorUtils::get_string<float>(val, true) + "]";
     }
     os << result;
     return os;

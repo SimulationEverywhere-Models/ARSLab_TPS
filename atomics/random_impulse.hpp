@@ -182,9 +182,14 @@ template<typename TIME> class RandomImpulse {
             if (DEBUG_RI) cout << "ri output called" << endl;
             typename make_message_bags<output_ports>::type bags;
             vector<message_t> bag_port_out;
-            bag_port_out.push_back(state.impulse);
+            if (state.impulse.particle_id != -1) {
+                bag_port_out.push_back(state.impulse);
+                if (DEBUG_RI) cout << "ri output not sending impulse" << endl;
+            }
+            else {
+                if (DEBUG_RI) cout << "ri output sending impulse (p_id: " << state.impulse.particle_id << "): " << VectorUtils::get_string<float>(state.impulse.data) << endl;
+            }
             get_messages<typename RandomImpulse_defs::impulse_out>(bags) = bag_port_out;
-            if (DEBUG_RI) cout << "ri output sending impulse (p_id: " << state.impulse.particle_id << "): " << VectorUtils::get_string<float>(state.impulse.data) << endl;
             if (DEBUG_RI) cout << "ri output returning" << endl;
             return bags;
         }
@@ -197,7 +202,7 @@ template<typename TIME> class RandomImpulse {
 
         friend ostringstream& operator<<(ostringstream& os, const typename RandomImpulse<TIME>::state_type& i) {
             if (DEBUG_RI) cout << "ri << called" << endl;
-            os << "impulse (p_id:" << i.impulse.particle_id << "): " << VectorUtils::get_string<float>(i.impulse.data);
+            os << "impulse [(p_id:" << i.impulse.particle_id << "): imp" << VectorUtils::get_string<float>(i.impulse.data, true) << "]";
             if (DEBUG_RI) cout << "ri << returning" << endl;
             return os;
         }

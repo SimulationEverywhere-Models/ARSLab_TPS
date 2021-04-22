@@ -1,5 +1,6 @@
 import tkinter as tk
 import tkinter.scrolledtext as st
+from ListScroll import ListScroll
 import pprint
 
 # https://stackoverflow.com/questions/17985216/draw-circle-in-tkinter-python
@@ -19,10 +20,16 @@ class Interface(tk.Frame):
         self.step = 0
         self.times = list(self.simData)
         self.visDims = visDims
-        self.scaleFactor = (min(visDims) / max(simDims)) * 0.3
+        self.scaleFactor = (min(visDims) / max(simDims)) * 0.3  # used to scale elements
+
         self.pack()
         self.createWidgets()
         self.updateApplication()
+        self.populateEventList()
+
+        self.canvasScaleFactor = 1  # used to keep track of canvas zooming
+        self.canvasPosition = [self.canvas.xview()[0], self.canvas.yview()[0]]  # keep track of original canvas position
+
         pprint.pprint(self.simData)
 
     def createWidgets (self):
@@ -46,7 +53,7 @@ class Interface(tk.Frame):
 
         # Information panel
         self.informationFrame = tk.LabelFrame(self.leftFrame, text="Information")
-        self.informationFrame.pack(side="top", padx=5, pady=5)
+        self.informationFrame.pack(side="top", padx=5, pady=5, fill="x")
 
         self.numParticles_label = tk.Label(self.informationFrame, text=f"# Particles: {len(self.simData[self.times[self.step]])}")
         self.numParticles_label.pack(side="top", padx=5, pady=5)
@@ -56,22 +63,22 @@ class Interface(tk.Frame):
         self.currTime_label = tk.Label(self.informationFrame, textvariable=self.currTime_sv)
         self.currTime_label.pack(side="top", padx=5, pady=5)
 
-        # Particle data
-        self.particleListFrame = tk.Frame(self.leftFrame)
-        self.particleListFrame.pack(side="top", padx=5, pady=5)
+        # Lists
+        self.listsFrame = tk.LabelFrame(self.leftFrame, text="")
+        self.listsFrame.pack(side="top", padx=5, pady=5)
 
-        self.particleData_list = tk.Listbox(self.particleListFrame, width=25, height=10)
-        self.particleData_list.grid(row=0, column=0, sticky="NSEW")
+        self.particleData_label = tk.Label(self.listsFrame, text="Particles")
+        self.particleData_label.pack(side="top", padx=5, pady=0)
 
-        self.particleData_vScroll = tk.Scrollbar(self.particleListFrame, orient="vertical")
-        self.particleData_vScroll.config(command=self.particleData_list.yview)
-        self.particleData_vScroll.grid(row=0, column=1, sticky="NS")
+        self.particleData_list = ListScroll(self.listsFrame)
+        self.particleData_list.pack(side="top", padx=5, pady=5)
 
-        self.particleData_hScroll = tk.Scrollbar(self.particleListFrame, orient="horizontal")
-        self.particleData_hScroll.config(command=self.particleData_list.xview)
-        self.particleData_hScroll.grid(row=1, column=0, sticky="EW")
+        self.events_label = tk.Label(self.listsFrame, text="Event Times")
+        self.events_label.pack(side="top", padx=5, pady=0)
 
-        self.particleData_list.config(yscrollcommand=self.particleData_vScroll.set, xscrollcommand=self.particleData_hScroll.set)
+        self.events_list = ListScroll(self.listsFrame)
+        self.events_list.pack(side="top", padx=5, pady=5)
+        self.events_list.bind("<<ListboxSelect>>", self.selectEvent_CB)
 
         # Other buttons
         self.exit_button = tk.Button(self.leftFrame)
@@ -79,9 +86,19 @@ class Interface(tk.Frame):
         self.exit_button["command"] = self.exit_CB
         self.exit_button.pack(side="bottom", fill="x")
 
+        self.canvasReset_button = tk.Button(self.leftFrame)
+        self.canvasReset_button["text"] = "Reset Canvas"
+        self.canvasReset_button["command"] = self.resetCanvas_CB
+        self.canvasReset_button.pack(side="bottom", fill="x")
+
         # Canvas
         self.canvas = tk.Canvas(self, bg="light grey", height=self.visDims[0], width=self.visDims[1])
         self.canvas.pack(side="right", padx=5, pady=5)
+
+        # https://stackoverflow.com/questions/41656176/tkinter-canvas-zoom-move-pan
+        self.canvas.bind("<ButtonPress-1>", lambda event : self.canvas.scan_mark(event.x, event.y))
+        self.canvas.bind("<B1-Motion>", lambda event : self.canvas.scan_dragto(event.x, event.y, gain=1))
+        self.canvas.bind("<MouseWheel>", self.zoomCanvas_CB)
 
     def updateCanvas (self):
         self.canvas.delete("all")
@@ -101,9 +118,14 @@ class Interface(tk.Frame):
         for snapshot in self.simData[self.times[self.step]]:
             self.particleData_list.insert("end", self.getParticleListItem(snapshot))
 
+    def updateEventSelection (self):
+        self.events_list.activate(self.step)
+
     def updateApplication (self):
         self.updateCanvas()
         self.updateParticleList()
+        self.updateEventSelection()
+        self.currTime_sv.set(f"Time: {self.times[self.step]}")
 
     def getParticleListItem (self, snapshot):
         result = "ID: " + str(snapshot.getID()) + ", "
@@ -111,6 +133,11 @@ class Interface(tk.Frame):
         result += "v: " + str(snapshot.getVel()) + ", "
         result += "p: " + str(snapshot.getPos())
         return result
+
+    def populateEventList (self):
+        self.events_list.delete(0, "end")
+        for time in self.simData:
+            self.events_list.insert("end", time)
 
     @staticmethod
     def getDirectionLine (vel, desiredLength):
@@ -138,7 +165,6 @@ class Interface(tk.Frame):
             print("Cannot step forward")
             return
         self.step += 1
-        self.currTime_sv.set(f"Time: {self.times[self.step]}")
         self.updateApplication()
         print("Stepping forward")
 
@@ -147,9 +173,26 @@ class Interface(tk.Frame):
             print("Cannot step backward")
             return
         self.step -= 1
-        self.currTime_sv.set(f"Time: {self.times[self.step]}")
         self.updateApplication()
         print("Stepping backward")
+
+    def selectEvent_CB (self, event):
+        try:
+            self.step = self.events_list.curselection()[0]
+            self.updateApplication()
+        except IndexError:
+            print("WARNING: possible list mismatch (ignoring)")
+
+    def zoomCanvas_CB (self, event):
+        factor = 1.001 ** event.delta
+        self.canvasScaleFactor *= factor  # track scaling
+        self.canvas.scale(tk.ALL, event.x, event.y, factor, factor)
+
+    def resetCanvas_CB (self):
+        self.canvas.scale(tk.ALL, self.visDims[0] / 2, self.visDims[1] / 2, 1 / self.canvasScaleFactor, 1 / self.canvasScaleFactor)
+        self.canvasScaleFactor = 1
+        self.canvas.xview_moveto(self.canvasPosition[0])
+        self.canvas.yview_moveto(self.canvasPosition[1])
 
     def exit_CB (self):
         self.master.destroy()

@@ -48,6 +48,7 @@ int main () {
     // Get initial particle information prepared
     ifstream ifs("../input/config.json");
     json configJson = json::parse(ifs);
+    bool do_ri = configJson["config"]["ri"];
     int dim = configJson["particles"][configJson["particles"].begin().key()]["position"].size();  // get number of dimensions
     json ri_particles = prepParticlesJSON(configJson, {}, {"mass", "tau", "shape", "mean"});
     json re_particles = prepParticlesJSON(configJson, {"position", "velocity"}, {"mass"});
@@ -55,8 +56,8 @@ int main () {
 
     /*** RI atomic model instantiation ***/
     shared_ptr<dynamic::modeling::model> random_impulse;
-    random_impulse = dynamic::translate::make_dynamic_atomic_model<RandomImpulse, TIME, json, int>
-            ("random_impulse", move(ri_particles), move(dim));
+    random_impulse = dynamic::translate::make_dynamic_atomic_model<RandomImpulse, TIME, json, int, bool>
+            ("random_impulse", move(ri_particles), move(dim), move(do_ri));
 
     /*** Responder atomic model instantiation ***/
     shared_ptr<dynamic::modeling::model> responder;

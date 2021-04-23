@@ -58,6 +58,7 @@ template<typename TIME> class RandomImpulse {
         struct state_type {
             json particle_data;
             int dim;  // specifies the number of dimensions
+            bool do_ri;  // whether or not to generate random impulses
             TIME next_impulse_time;
             message_t impulse;
             priority_queue<pair<int, TIME>, vector<pair<int, TIME>>, ComparePair> particle_times;
@@ -73,10 +74,11 @@ template<typename TIME> class RandomImpulse {
             if (DEBUG_RI) cout << "RandomImpulse non-default constructor called with value: " << test << endl;
         }
 
-        RandomImpulse (json j, int dim) {
+        RandomImpulse (json j, int dim, bool do_ri) {
             if (DEBUG_RI) cout << "RandomImpulse constructor received JSON and dim: " << j << " --- " << dim << endl;
             state.particle_data = j;
             state.dim = dim;
+            state.do_ri = do_ri;
             state.impulse.is_ri = true;
 
             // go through particles and get the times at which they should receive RIs
@@ -89,7 +91,7 @@ template<typename TIME> class RandomImpulse {
         void internal_transition () {
             if (DEBUG_RI) cout << "ri internal transition called" << endl;
 
-            if (!RI_ACTIVE) {
+            if (!state.do_ri) {
                 state.next_impulse_time = numeric_limits<TIME>::infinity();
                 if (DEBUG_RI) cout << "ri internal transition finishing (permanately passivated)" << endl;
                 return;

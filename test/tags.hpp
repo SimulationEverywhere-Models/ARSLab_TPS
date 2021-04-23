@@ -10,6 +10,4 @@ Define control tags in a central location
 #define DEBUG_TR true  // tracker
 #define DEBUG_SV true  // subV
 
-#define RI_ACTIVE false  // whether or not the random impulse module is sending messages
-
 #endif

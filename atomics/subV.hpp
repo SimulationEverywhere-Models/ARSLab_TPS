@@ -147,16 +147,17 @@ template<typename TIME> class SubV {
                     // Calculations should not be done here because, for collisions, there will be two associated messages received (one for each particle involved)
                     // - Only particle_data information should be changed
 
-                    // update related time value for particle (last time position changed)
-                    state.particle_times[x.particle_id] = state.current_time;
-
                     if (DEBUG_SV) cout << "subV external transition: handling impulse: " << (x.is_ri ? "true" : "false") << endl;
                     if (DEBUG_SV) cout << "subV external transition: current time (subV_id: " << state.subV_id << "): " << state.current_time << endl;
 
-                    //state.particle_data[to_string(x.particle_id)]["position"] = position(x.particle_id);
-                    state.particle_data[to_string(x.particle_id)]["position"] = state.next_collision.positions[x.particle_id];
+                    state.particle_data[to_string(x.particle_id)]["position"] = position(x.particle_id);
+                    //state.particle_data[to_string(x.particle_id)]["position"] = state.next_collision.positions[x.particle_id];  // cannot do this (RI messages will break this)
                     if (DEBUG_SV) cout << "subV external transition: received velocity: " << VectorUtils::get_string<float>(x.data)
                                        << ", set position: " << VectorUtils::get_string<float>(state.particle_data[to_string(x.particle_id)]["position"]) << endl;
+
+                    // update related time value for particle (last time position changed)
+                    // must be updated after position is calculated
+                    state.particle_times[x.particle_id] = state.current_time;
 
                     if (DEBUG_SV && false) {
                         // report position to the command line
@@ -309,9 +310,15 @@ template<typename TIME> class SubV {
         // retrieve the position of a particle at a certain amount of time in the future
         // time is the time at which we want to know the particle's position
         vector<float> position (int p_id, TIME time) {
+            cout << "SUBV POSITION p_id: " << p_id << endl;
             TIME desired_time = time - state.particle_times[p_id];
+            cout << "SUBV POSITION CALCULATED time: " << desired_time << endl;
             vector <float> temp = VectorUtils::element_dist(state.particle_data[to_string(p_id)]["velocity"], desired_time, VectorUtils::multiply);
-            return VectorUtils::element_op(state.particle_data[to_string(p_id)]["position"], temp, VectorUtils::add);
+            cout << "SUBV POSITION CALCULATED temp: " << VectorUtils::get_string<float>(temp, true) << endl;
+            vector<float> result = VectorUtils::element_op(state.particle_data[to_string(p_id)]["position"], temp, VectorUtils::add);
+            cout << "SUBV POSITION CALCULATED result: " << VectorUtils::get_string<float>(result, true) << endl;
+            return result;
+            //return VectorUtils::element_op(state.particle_data[to_string(p_id)]["position"], temp, VectorUtils::add);
         }
 
         // retrieve the position of a particle at the current time

@@ -16,6 +16,7 @@ class Interface(tk.Frame):
         self.master = master
         self.master.title("TPS Diagnostic Visualizer")
         self.simData = data["simulation"]
+        self.eventData = data["events"]
         self.propData = data["properties"]
         self.step = 0
         self.times = list(self.simData)
@@ -44,24 +45,31 @@ class Interface(tk.Frame):
         self.stepForward_button = tk.Button(self.controlFrame)
         self.stepForward_button["text"] = "===>"
         self.stepForward_button["command"] = self.stepForward_CB
+        if (self.step == len(self.times) - 1): self.stepForward_button["state"] = "disable"
         self.stepForward_button.pack(side="right", padx=5, pady=5)
 
         self.stepBackward_button = tk.Button(self.controlFrame)
         self.stepBackward_button["text"] = "<==="
         self.stepBackward_button["command"] = self.stepBackward_CB
+        if (self.step == 0): self.stepBackward_button["state"] = "disable"
         self.stepBackward_button.pack(side="left", padx=5, pady=5)
 
         # Information panel
         self.informationFrame = tk.LabelFrame(self.leftFrame, text="Information")
-        self.informationFrame.pack(side="top", padx=5, pady=5, fill="x")
+        self.informationFrame.pack(side="top", padx=5, pady=5, ipadx=5, ipady=5, fill="x")
 
         self.numParticles_label = tk.Label(self.informationFrame, text=f"# Particles: {len(self.simData[self.times[self.step]])}")
-        self.numParticles_label.pack(side="top", padx=5, pady=5)
+        self.numParticles_label.pack(side="top", padx=0, pady=0)
 
         self.currTime_sv = tk.StringVar()
         self.currTime_sv.set(f"Time: {self.times[self.step]}")
         self.currTime_label = tk.Label(self.informationFrame, textvariable=self.currTime_sv)
-        self.currTime_label.pack(side="top", padx=5, pady=5)
+        self.currTime_label.pack(side="top", padx=0, pady=0)
+
+        self.currEvent_sv = tk.StringVar()
+        self.currEvent_sv.set(self.getEventString())
+        self.currTime_label = tk.Label(self.informationFrame, textvariable=self.currEvent_sv)
+        self.currTime_label.pack(side="top", padx=0, pady=0)
 
         # Lists
         self.listsFrame = tk.LabelFrame(self.leftFrame, text="")
@@ -120,12 +128,14 @@ class Interface(tk.Frame):
 
     def updateEventSelection (self):
         self.events_list.activate(self.step)
+        self.events_list.focus_set()  # set focus here so that the graphic updates
 
     def updateApplication (self):
         self.updateCanvas()
         self.updateParticleList()
         self.updateEventSelection()
         self.currTime_sv.set(f"Time: {self.times[self.step]}")
+        self.currEvent_sv.set(self.getEventString())
 
     def getParticleListItem (self, snapshot):
         result = "ID: " + str(snapshot.getID()) + ", "
@@ -138,6 +148,14 @@ class Interface(tk.Frame):
         self.events_list.delete(0, "end")
         for time in self.simData:
             self.events_list.insert("end", time)
+
+    def getEventString (self):
+        if (self.step == 0):
+            return "Type: N/A"
+        event = self.eventData[self.times[self.step]]
+        eventType = event["type"]
+        eventIDs = event["particles"]
+        return f"Type: {eventType} (IDs: {eventIDs})"
 
     @staticmethod
     def getDirectionLine (vel, desiredLength):
@@ -161,20 +179,22 @@ class Interface(tk.Frame):
     # ==================
 
     def stepForward_CB (self):
-        if (self.step >= len(self.times) - 1):
-            print("Cannot step forward")
-            return
+        print("Stepping forward")
         self.step += 1
         self.updateApplication()
-        print("Stepping forward")
+        self.stepBackward_button["state"] = "normal"
+        if (self.step >= len(self.times) - 1):
+            print("Last event reached")
+            self.stepForward_button["state"] = "disable"
 
     def stepBackward_CB (self):
-        if (self.step <= 0):
-            print("Cannot step backward")
-            return
+        print("Stepping backward")
         self.step -= 1
         self.updateApplication()
-        print("Stepping backward")
+        self.stepForward_button["state"] = "normal"
+        if (self.step <= 0):
+            print("First event reached")
+            self.stepBackward_button["state"] = "disable"
 
     def selectEvent_CB (self, event):
         try:

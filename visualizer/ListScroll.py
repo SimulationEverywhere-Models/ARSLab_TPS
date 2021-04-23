@@ -34,3 +34,6 @@ class ListScroll (tk.Frame):
 
     def curselection (self, *args, **kwargs):
         return self.itemList.curselection(*args, **kwargs)
+
+    def focus_set (self, *args, **kwargs):
+        self.itemList.focus_set(*args, **kwargs)

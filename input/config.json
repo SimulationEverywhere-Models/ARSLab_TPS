@@ -1,4 +1,7 @@
 {
+    "config" : {
+        "ri" : true
+    },
     "species" : {
         "default" : {
             "mass" : 1,

@@ -58,9 +58,6 @@ class Interface(tk.Frame):
         self.informationFrame = tk.LabelFrame(self.leftFrame, text="Information")
         self.informationFrame.pack(side="top", padx=5, pady=5, ipadx=5, ipady=5, fill="x")
 
-        self.numParticles_label = tk.Label(self.informationFrame, text=f"# Particles: {len(self.simData[self.times[self.step]])}")
-        self.numParticles_label.pack(side="top", padx=0, pady=0)
-
         self.currTime_sv = tk.StringVar()
         self.currTime_sv.set(f"Time: {self.times[self.step]}")
         self.currTime_label = tk.Label(self.informationFrame, textvariable=self.currTime_sv)
@@ -75,13 +72,15 @@ class Interface(tk.Frame):
         self.listsFrame = tk.LabelFrame(self.leftFrame, text="")
         self.listsFrame.pack(side="top", padx=5, pady=5)
 
-        self.particleData_label = tk.Label(self.listsFrame, text="Particles")
+        self.particleData_label = tk.Label(self.listsFrame, text=f"Particles ({len(self.simData[self.times[self.step]])})")
         self.particleData_label.pack(side="top", padx=5, pady=0)
 
         self.particleData_list = ListScroll(self.listsFrame)
         self.particleData_list.pack(side="top", padx=5, pady=5)
 
-        self.events_label = tk.Label(self.listsFrame, text="Event Times")
+        self.currEventNum_sv = tk.StringVar()
+        self.currEventNum_sv.set(f"Event Times ({self.step + 1} of {len(self.times)})")
+        self.events_label = tk.Label(self.listsFrame, textvariable=self.currEventNum_sv)
         self.events_label.pack(side="top", padx=5, pady=0)
 
         self.events_list = ListScroll(self.listsFrame)
@@ -134,7 +133,9 @@ class Interface(tk.Frame):
         self.updateCanvas()
         self.updateParticleList()
         self.updateEventSelection()
+        self.checkProgressButtonsStatus()
         self.currTime_sv.set(f"Time: {self.times[self.step]}")
+        self.currEventNum_sv.set(f"Event Times ({self.step + 1} of {len(self.times)})")
         self.currEvent_sv.set(self.getEventString())
 
     def getParticleListItem (self, snapshot):
@@ -182,19 +183,11 @@ class Interface(tk.Frame):
         print("Stepping forward")
         self.step += 1
         self.updateApplication()
-        self.stepBackward_button["state"] = "normal"
-        if (self.step >= len(self.times) - 1):
-            print("Last event reached")
-            self.stepForward_button["state"] = "disable"
 
     def stepBackward_CB (self):
         print("Stepping backward")
         self.step -= 1
         self.updateApplication()
-        self.stepForward_button["state"] = "normal"
-        if (self.step <= 0):
-            print("First event reached")
-            self.stepBackward_button["state"] = "disable"
 
     def selectEvent_CB (self, event):
         try:
@@ -202,6 +195,19 @@ class Interface(tk.Frame):
             self.updateApplication()
         except IndexError:
             print("WARNING: possible list mismatch (ignoring)")
+
+    def checkProgressButtonsStatus (self):
+        if (self.step <= 0):
+            print("First event reached")
+            self.stepBackward_button["state"] = "disable"
+        else:
+            self.stepBackward_button["state"] = "normal"
+
+        if (self.step >= len(self.times) - 1):
+            print("Last event reached")
+            self.stepForward_button["state"] = "disable"
+        else:
+            self.stepForward_button["state"] = "normal"
 
     def zoomCanvas_CB (self, event):
         factor = 1.001 ** event.delta

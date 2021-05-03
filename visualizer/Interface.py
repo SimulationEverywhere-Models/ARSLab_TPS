@@ -23,6 +23,9 @@ class Interface(tk.Frame):
         self.visDims = visDims
         self.scaleFactor = (min(visDims) / max(simDims)) * 0.3  # used to scale elements
 
+        self.canvasColours = ["white", "light grey", "dark grey"]
+        self.currCanvasColourIndex = 0
+
         self.pack()
         self.createWidgets()
         self.updateApplication()
@@ -31,7 +34,7 @@ class Interface(tk.Frame):
         self.canvasScaleFactor = 1  # used to keep track of canvas zooming
         self.canvasPosition = [self.canvas.xview()[0], self.canvas.yview()[0]]  # keep track of original canvas position
 
-        pprint.pprint(self.simData)
+        #pprint.pprint(self.simData)
 
     def createWidgets (self):
         # Side panel (invisible)
@@ -98,8 +101,13 @@ class Interface(tk.Frame):
         self.canvasReset_button["command"] = self.resetCanvas_CB
         self.canvasReset_button.pack(side="bottom", fill="x")
 
+        self.canvasColour_button = tk.Button(self.leftFrame)
+        self.canvasColour_button["text"] = "Change Colour"
+        self.canvasColour_button["command"] = self.canvasColour_CB
+        self.canvasColour_button.pack(side="bottom", fill="x")
+
         # Canvas
-        self.canvas = tk.Canvas(self, bg="light grey", height=self.visDims[0], width=self.visDims[1])
+        self.canvas = tk.Canvas(self, bg=self.canvasColours[self.currCanvasColourIndex % len(self.canvasColours)], height=self.visDims[0], width=self.visDims[1])
         self.canvas.pack(side="right", padx=5, pady=5)
 
         # https://stackoverflow.com/questions/41656176/tkinter-canvas-zoom-move-pan
@@ -110,11 +118,13 @@ class Interface(tk.Frame):
     def updateCanvas (self):
         self.canvas.delete("all")
         for snapshot in self.simData[self.times[self.step]]:
-            # only handle 2D for now
             x = (snapshot.getPos()[0] * self.scaleFactor) + (self.visDims[0] / 2)
             y = (snapshot.getPos()[1] * self.scaleFactor) + (self.visDims[1] / 2)
+            colour = "black"
+            if (len(snapshot.getPos()) == 3):
+                colour = Interface.getColour(snapshot.getPos()[2], -3, 3)
             radius = self.propData[snapshot.getID()]["radius"] * self.scaleFactor
-            self.canvas.create_circle(x, y, radius)
+            self.canvas.create_circle(x, y, radius, width=2, outline=colour)
             self.canvas.create_text(x, y, text=str(snapshot.getID()))
 
             directionLine = Interface.getDirectionLine(snapshot.getVel(), radius)
@@ -170,6 +180,24 @@ class Interface(tk.Frame):
         return result
 
     @staticmethod
+    def getColour (z, minZ, maxZ):
+        greyScale = int(Interface.calcShade(z, minZ, maxZ, 0, 255))
+        return Interface.convertColour(greyScale, greyScale, greyScale)
+
+    @staticmethod
+    def calcShade (z, minZ, maxZ, minC, maxC):
+        shade = minC + ((maxC - minC) * ((z - minZ) / (maxZ - minZ)))
+        if (shade < minC):
+            return minC
+        elif (shade > maxC):
+            return maxC
+        return shade
+
+    @staticmethod
+    def convertColour (r, g, b):
+        return "#%02x%02x%02x" % (r, g, b)
+
+    @staticmethod
     def start (data, simDims, visDims):
         root = tk.Tk()
         app = Interface(master=root, data=data, simDims=simDims, visDims=visDims)
@@ -214,11 +242,17 @@ class Interface(tk.Frame):
         self.canvasScaleFactor *= factor  # track scaling
         self.canvas.scale(tk.ALL, event.x, event.y, factor, factor)
 
+    def canvasColour_CB (self):
+        self.currCanvasColourIndex += 1
+        self.canvas.configure(bg=self.canvasColours[self.currCanvasColourIndex % len(self.canvasColours)])
+
     def resetCanvas_CB (self):
         self.canvas.scale(tk.ALL, self.visDims[0] / 2, self.visDims[1] / 2, 1 / self.canvasScaleFactor, 1 / self.canvasScaleFactor)
         self.canvasScaleFactor = 1
         self.canvas.xview_moveto(self.canvasPosition[0])
         self.canvas.yview_moveto(self.canvasPosition[1])
+        self.currCanvasColourIndex = 0
+        self.canvas.configure(bg=self.canvasColours[self.currCanvasColourIndex % len(self.canvasColours)])
 
     def exit_CB (self):
         self.master.destroy()

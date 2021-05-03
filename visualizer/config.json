@@ -1,0 +1,11 @@
+{
+    "files" : {
+        "states" : "../simulation_results/iter_1_test_output_state.txt",
+        "messages" : "../simulation_results/iter_1_test_output_messages.txt",
+        "config" : "../input/config_org.json"
+    },
+    "dimensions" : {
+        "simulation" : [5, 5],
+        "visualizer" : [700, 900]
+    }
+}

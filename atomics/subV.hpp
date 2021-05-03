@@ -310,15 +310,9 @@ template<typename TIME> class SubV {
         // retrieve the position of a particle at a certain amount of time in the future
         // time is the time at which we want to know the particle's position
         vector<float> position (int p_id, TIME time) {
-            cout << "SUBV POSITION p_id: " << p_id << endl;
             TIME desired_time = time - state.particle_times[p_id];
-            cout << "SUBV POSITION CALCULATED time: " << desired_time << endl;
             vector <float> temp = VectorUtils::element_dist(state.particle_data[to_string(p_id)]["velocity"], desired_time, VectorUtils::multiply);
-            cout << "SUBV POSITION CALCULATED temp: " << VectorUtils::get_string<float>(temp, true) << endl;
-            vector<float> result = VectorUtils::element_op(state.particle_data[to_string(p_id)]["position"], temp, VectorUtils::add);
-            cout << "SUBV POSITION CALCULATED result: " << VectorUtils::get_string<float>(result, true) << endl;
-            return result;
-            //return VectorUtils::element_op(state.particle_data[to_string(p_id)]["position"], temp, VectorUtils::add);
+            return VectorUtils::element_op(state.particle_data[to_string(p_id)]["position"], temp, VectorUtils::add);
         }
 
         // retrieve the position of a particle at the current time

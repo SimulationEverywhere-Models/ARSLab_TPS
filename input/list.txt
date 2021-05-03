@@ -1,0 +1,8 @@
+config_3D-1
+2 particles moving toward each other in 3D diagonally
+
+config_org
+3 particles interacting with each other
+
+config_org_3D
+config_org in 3D (set on a single plane, z=0)

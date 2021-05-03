@@ -44,9 +44,13 @@ struct top_out : public out_port<message_t>{};
 struct lattice_collision_out : public out_port<collision_message_t>{};
 struct detector_collision_out : public out_port<collision_message_t>{};
 
-int main () {
+int main (int argc, char** argv) {
     // Get initial particle information prepared
-    ifstream ifs("../input/config.json");
+    string filename = "../input/config.json";
+    if (argc == 2) {
+        filename = argv[1];
+    }
+    ifstream ifs(filename);
     json configJson = json::parse(ifs);
     bool do_ri = configJson["config"]["ri"];
     int dim = configJson["particles"][configJson["particles"].begin().key()]["position"].size();  // get number of dimensions

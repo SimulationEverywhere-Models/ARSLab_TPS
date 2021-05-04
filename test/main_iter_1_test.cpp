@@ -53,6 +53,7 @@ int main (int argc, char** argv) {
     ifstream ifs(filename);
     json configJson = json::parse(ifs);
     bool do_ri = configJson["config"]["ri"];
+    float runtime = configJson["config"]["runtime"];
     int dim = configJson["particles"][configJson["particles"].begin().key()]["position"].size();  // get number of dimensions
     json ri_particles = prepParticlesJSON(configJson, {}, {"mass", "tau", "shape", "mean"});
     json re_particles = prepParticlesJSON(configJson, {"position", "velocity"}, {"mass"});
@@ -170,7 +171,7 @@ int main (int argc, char** argv) {
     /*** Runner call ***/
     dynamic::engine::runner<TIME, logger_top> r(TOP, {0});
     //r.run_until(NDTime("00:05:00:000"));
-    r.run_until(TIME(25));
+    r.run_until(TIME(runtime));
     return 0;
 }
 

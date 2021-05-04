@@ -1,6 +1,7 @@
 {
     "config" : {
-        "ri" : true
+        "ri" : true,
+        "runtime" : 25
     },
     "species" : {
         "default" : {

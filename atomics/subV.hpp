@@ -252,6 +252,7 @@ template<typename TIME> class SubV {
                     if (it1 != it2) {
                         next_collision_time = detect(stoi(it1.key()), stoi(it2.key()));
                         if (next_collision_time >= 0 && next_collision_time < next_collision.time) {
+                            next_collision.collision.positions.clear();
                             next_collision.collision.positions[stoi(it1.key())] = {};
                             next_collision.collision.positions[stoi(it2.key())] = {};
                             next_collision.time = next_collision_time;

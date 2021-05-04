@@ -2,10 +2,10 @@
     "files" : {
         "states" : "../simulation_results/iter_1_test_output_state.txt",
         "messages" : "../simulation_results/iter_1_test_output_messages.txt",
-        "config" : "../input/config_org.json"
+        "config" : "../input/config_2D_30p.json"
     },
     "dimensions" : {
-        "simulation" : [5, 5],
+        "simulation" : [15, 15],
         "visualizer" : [700, 900]
     }
 }

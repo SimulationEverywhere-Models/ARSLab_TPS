@@ -92,7 +92,8 @@ template<typename TIME> class Tracker {
             // Handle velocity messages from responder
             for (const auto &x : get_messages<typename Tracker_defs::response_in>(mbs)) {
                 // create a message and add relevant the subV_ids
-                state.messages.push_back(tracker_message_t(x, state.particle_locations[x.particle_id]));
+                //state.messages.push_back(tracker_message_t(x, state.particle_locations[x.particle_id]));
+                state.messages.push_back(tracker_message_t(x, {1}));  // temporarily send all messages to subV 1
             }
             //if (DEBUG_TR) cout << "tr added messages (# messages:" << state.messages.size() << ")" << endl;
             state.next_internal = 0;

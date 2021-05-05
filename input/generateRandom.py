@@ -73,17 +73,13 @@ def genParticles (dim, maxParticles, allSpecies, minPos, maxPos, minVel, maxVel,
             break
     return result
 
-species = {
-    "default" : {
-        "radius" : 1,
-    },
-    "small" : {
-        "radius" : 0.5,
-    }
-}
+result = None
+with open("config_template.json", "r") as f:
+    result = json.loads(f.read())
 
-result = {}
-result["particles"] = genParticles(2, 30, species, -15, 15, -3, 3)
+species = result["species"]
+
+result["particles"] = genParticles(2, 5, species, -5, 5, -3, 3)
 
 output = json.dumps(result)
 

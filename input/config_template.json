@@ -1,0 +1,23 @@
+{
+    "config" : {
+        "ri" : false,
+        "runtime" : 100
+    },
+    "species" : {
+        "default" : {
+            "mass" : 1,
+            "radius" : 1,
+            "tau" : 0.2,
+            "shape" : 0.2,
+            "mean" : 0.2
+        },
+        "small" : {
+            "mass" : 0.1,
+            "radius" : 0.5,
+            "tau" : 0.1,
+            "shape" : 0.1,
+            "mean" : 0.1
+        }
+    },
+    "particles" : {}
+}

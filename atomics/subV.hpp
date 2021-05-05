@@ -134,8 +134,9 @@ template<typename TIME> class SubV {
             // update the current time before doing work
             state.current_time += e;
 
-            if (get_messages<typename SubV_defs::response_in>(mbs).size() > 1) {
-                if (DEBUG_SV) cout << "NOTE: subV received more than one concurrent message" << endl;
+            int numMessages = get_messages<typename SubV_defs::response_in>(mbs).size();
+            if (numMessages > 1) {
+                if (DEBUG_SV) cout << "NOTE: subV received " << numMessages << " concurrent messages" << endl;
             }
 
             // Handle velocity messages from tracker

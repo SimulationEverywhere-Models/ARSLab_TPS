@@ -1,0 +1,46 @@
+{
+    "config" : {
+        "ri" : true,
+        "runtime" : 100
+    },
+    "species" : {
+        "default" : {
+            "mass" : 1,
+            "radius" : 1,
+            "tau" : 0.2,
+            "shape" : 0.2,
+            "mean" : 0.2
+        },
+        "small" : {
+            "mass" : 0.1,
+            "radius" : 0.5,
+            "tau" : 0.1,
+            "shape" : 0.1,
+            "mean" : 0.1
+        },
+        "heavy" : {
+            "mass" : 10,
+            "radius" : 2,
+            "tau" : 0.3,
+            "shape" : 0.3,
+            "mean" : 0.3
+        }
+    },
+    "particles" : {
+        "1" : {
+            "position" : [5, 0, 0],
+            "velocity" : [-0.5, 0, 0],
+            "species" : "heavy"
+        },
+        "2" : {
+            "position" : [0, 0, 0],
+            "velocity" : [2, 0, 0],
+            "species" : "small"
+        },
+        "3" : {
+            "position" : [-5, 0, 0],
+            "velocity" : [0.5, 0, 0],
+            "species" : "heavy"
+        }
+    }
+}

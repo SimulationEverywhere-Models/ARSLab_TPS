@@ -22,6 +22,7 @@ class Interface(tk.Frame):
         self.times = list(self.simData)
         self.visDims = visDims
         self.scaleFactor = (min(visDims) / max(simDims)) * 0.3  # used to scale elements
+        self.visDims[1] *= -1  # allow proper viewing (related to the flip on the y-axis
 
         self.canvasColours = ["white", "light grey", "dark grey"]
         self.currCanvasColourIndex = 0
@@ -32,7 +33,9 @@ class Interface(tk.Frame):
         self.populateEventList()
 
         self.canvasScaleFactor = 1  # used to keep track of canvas zooming
-        self.canvasPosition = [self.canvas.xview()[0], self.canvas.yview()[0]]  # keep track of original canvas position
+        self.canvasPosition = [self.canvas.xview()[0], self.canvas.yview()[0]]
+        print(f"Canvas position: {self.canvasPosition}")
+        self.resetCanvas_CB()
 
         #pprint.pprint(self.simData)
 
@@ -107,8 +110,12 @@ class Interface(tk.Frame):
         self.canvasColour_button.pack(side="bottom", fill="x")
 
         # Canvas
-        self.canvas = tk.Canvas(self, bg=self.canvasColours[self.currCanvasColourIndex % len(self.canvasColours)], height=self.visDims[0], width=self.visDims[1])
+        #self.canvas = tk.Canvas(self, bg=self.canvasColours[self.currCanvasColourIndex % len(self.canvasColours)], width=self.visDims[0], height=self.visDims[1])
+        print(f"VisDims: {self.visDims}")
+        self.canvas = tk.Canvas(self, bg=self.canvasColours[self.currCanvasColourIndex % len(self.canvasColours)], width=900, height=700)
         self.canvas.pack(side="right", padx=5, pady=5)
+        self.canvas.xview_moveto(0)
+        self.canvas.yview_moveto(-700)
 
         # https://stackoverflow.com/questions/41656176/tkinter-canvas-zoom-move-pan
         self.canvas.bind("<ButtonPress-1>", lambda event : self.canvas.scan_mark(event.x, event.y))
@@ -120,6 +127,7 @@ class Interface(tk.Frame):
         for snapshot in self.simData[self.times[self.step]]:
             x = (snapshot.getPos()[0] * self.scaleFactor) + (self.visDims[0] / 2)
             y = (snapshot.getPos()[1] * self.scaleFactor) + (self.visDims[1] / 2)
+            y *= -1  # flip to represent particles with +y on top (as opposed to tkinter's +y on bottom)
             colour = "black"
             if (len(snapshot.getPos()) == 3):
                 colour = Interface.getColour(snapshot.getPos()[2], -3, 3)
@@ -128,7 +136,7 @@ class Interface(tk.Frame):
             self.canvas.create_text(x, y, text=str(snapshot.getID()))
 
             directionLine = Interface.getDirectionLine(snapshot.getVel(), radius)
-            self.canvas.create_line(x, y, x + directionLine[0], y + directionLine[1])
+            self.canvas.create_line(x, y, x + directionLine[0], y - directionLine[1])  # subtract (instead of add) from y to flip
 
     def updateParticleList (self):
         self.particleData_list.delete(0, "end")
@@ -163,7 +171,13 @@ class Interface(tk.Frame):
     def getEventString (self):
         if (self.step == 0):
             return "Type: N/A"
-        event = self.eventData[self.times[self.step]]
+        event = None
+        time = self.times[self.step]
+        try:
+            event = self.eventData[time]
+        except KeyError:
+            print(f"Invalid key: {time}")
+            return "Error"
         eventType = event["type"]
         eventIDs = event["particles"]
         return f"Type: {eventType} (IDs: {eventIDs})"
@@ -247,6 +261,7 @@ class Interface(tk.Frame):
         self.canvas.configure(bg=self.canvasColours[self.currCanvasColourIndex % len(self.canvasColours)])
 
     def resetCanvas_CB (self):
+        print(f"Old coordinates: {[self.canvas.xview()[0], self.canvas.yview()[0]]}")
         self.canvas.scale(tk.ALL, self.visDims[0] / 2, self.visDims[1] / 2, 1 / self.canvasScaleFactor, 1 / self.canvasScaleFactor)
         self.canvasScaleFactor = 1
         self.canvas.xview_moveto(self.canvasPosition[0])

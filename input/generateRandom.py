@@ -79,7 +79,17 @@ with open("config_template.json", "r") as f:
 
 species = result["species"]
 
-result["particles"] = genParticles(2, 5, species, -5, 5, -3, 3)
+#dim = 2
+#maxParticles = 1000
+#posRange = [-150, 150]
+#velRange = [-3, 3]
+
+dim = 3
+maxParticles = 30
+posRange = [-15, 15]
+velRange = [-3, 3]
+result["particles"] = genParticles(dim, maxParticles, species, posRange[0], posRange[1],
+                                   velRange[0], velRange[1])
 
 output = json.dumps(result)
 

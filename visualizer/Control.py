@@ -7,6 +7,11 @@ class Control:
         pass
 
     def start (self, config="config.json"):
+        print("Importing data...")
         setup = Parser.importJSON(config)
+
+        print("Parsing data...")
         data = Parser.getData(setup["files"]["states"], setup["files"]["messages"], setup["files"]["config"])
+
+        print("Running visualizer...")
         Interface.start(data=data, simDims=setup["dimensions"]["simulation"], visDims=setup["dimensions"]["visualizer"])

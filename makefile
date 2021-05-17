@@ -4,6 +4,7 @@ CFLAGS=-std=c++17
 INCLUDECADMIUM=-I ../../cadmium/include
 INCLUDEDESTIMES=-I ../../DESTimes/include
 INCLUDEJSON=-I ../../cadmium/json/include
+INCLUDEBOOST=-I /home/thomas/boost/boost
 VARIABLES=#-DNDEBUG
 
 #CREATE BIN AND BUILD FOLDERS TO SAVE THE COMPILED FILES DURING RUNTIME
@@ -25,7 +26,7 @@ main_ri_re_tr_test.o: test/main_ri_re_tr_test.cpp
 	$(CC) -g -c $(CFLAGS) $(INCLUDECADMIUM) $(INCLUDEDESTIMES) $(INCLUDEJSON) $(VARIABLES) test/main_ri_re_tr_test.cpp -o build/main_ri_re_tr_test.o
 
 main_iter_1_test.o: test/main_iter_1_test.cpp
-	$(CC) -g -c $(CFLAGS) $(INCLUDECADMIUM) $(INCLUDEDESTIMES) $(INCLUDEJSON) $(VARIABLES) test/main_iter_1_test.cpp -o build/main_iter_1_test.o
+	$(CC) -g -c $(CFLAGS) $(INCLUDECADMIUM) $(INCLUDEDESTIMES) $(INCLUDEJSON) $(INCLUDEBOOST) $(VARIABLES) test/main_iter_1_test.cpp -o build/main_iter_1_test.o
 
 ri: main_random_impulse_test.o message.o
 	$(CC) $(VARIABLES) -g -o bin/RI_TEST build/main_random_impulse_test.o build/message.o

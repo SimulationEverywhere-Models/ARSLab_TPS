@@ -17,12 +17,16 @@ Responsibilities
 #include <cmath>  // abs, sqrt
 //#include <algorithm>  // max
 #include <map>
+#include <unordered_map>
 #include <nlohmann/json.hpp>
+#include <boost/functional/hash.hpp>
 
 #include "../test/tags.hpp"  // debug tags
 #include "../utilities/vector_utils.hpp"  // vector functions
 
 #include "../data_structures/message.hpp"
+
+#define DELTA_T_MAX 10000000  // value larger than any reasonable simulation runtime
 
 using namespace cadmium;
 using namespace std;
@@ -61,6 +65,7 @@ template<typename TIME> class SubV {
             collision_message_t next_collision;
             bool awaiting_response;  // whether or not subV has received a response from the responder (if not, do not preform further calculations until received)
             bool sending_collision;  // whether or not to send a collision (stop message sending is receiving an RI or a response message)
+            unordered_map<pair<int, int>, float, boost::hash<pair<int, int>>> collisions_cache;  // cache collision times for non-inf times
         };
         state_type state;
 
@@ -83,6 +88,9 @@ template<typename TIME> class SubV {
             for (auto it = state.particle_data.begin(); it != state.particle_data.end(); ++it) {
                 state.particle_times[stoi(it.key())] = state.current_time;
             }
+
+            // populate collision cache
+            populate_collision_cache();
         }
 
         // internal transition
@@ -139,6 +147,9 @@ template<typename TIME> class SubV {
                 if (DEBUG_SV) cout << "NOTE: subV received " << numMessages << " concurrent messages" << endl;
             }
 
+            // TODO: try managing both velocity messages simultaneously (if it is not an RI, of course)
+            //       as it may be necessary to update the cache ONLY after BOTH velocities are set
+
             // Handle velocity messages from tracker
             for (const auto &x : get_messages<typename SubV_defs::response_in>(mbs)) {
                 // if the message is relevant to this subV
@@ -171,6 +182,9 @@ template<typename TIME> class SubV {
                     // incorporate newly received velocity
                     state.particle_data[to_string(x.particle_id)]["velocity"] = x.data;
                     if (DEBUG_SV) cout << "subV external transition: new velocity set: (p_id: " << x.particle_id << ") " << VectorUtils::get_string<float>(x.data) << endl;
+
+                    // update collision cache to incorporate new velocities
+                    update_collision_cache({x.particle_id});  // TODO: account for walls (maybe use negative numbers?)
 
                     // set next_internal to zero to immediately calculate the next collision
                     state.next_internal = 0;
@@ -235,13 +249,100 @@ template<typename TIME> class SubV {
 
     private:
 
-        const int delta_t_max = 10000000;  // used to avoid divide-by-zero errors (needs to be larger than any reasonable simulation runtime)
-
         // contains information on the collision and the time at which it will happen
         struct next_collision_t {
             collision_message_t collision;
             TIME time;
         };
+
+        // initially populate cache with absolute times (not just time UNTIL)
+        void populate_collision_cache () {
+            cout << "subV populate_collision_cache called" << endl;
+            TIME next_collision_time;
+            for (auto it1 = state.particle_data.begin(); it1 != state.particle_data.end(); ++it1) {
+                for (auto it2 = it1; it2 != state.particle_data.end(); ++it2) {
+                    if (*it1 != *it2) {
+                        next_collision_time = detect(stoi(it1.key()), stoi(it2.key()));
+                        if (next_collision_time < DELTA_T_MAX) {  // effectively checks that the time is not inf
+                            state.collisions_cache[make_pair(stoi(it1.key()), stoi(it2.key()))] = next_collision_time;  // do not need to add since this only happens in constructor
+                        }
+                    }
+                }
+            }
+            cout << "subV populate_collision_cache finishing" << endl;
+        }
+
+        // update all particles to determine when the next collision will occur and with which particles
+        void update_collision_cache (vector<int> p_ids) {
+            cout << "subV update_collision_cache called" << endl;
+            TIME next_collision_time;
+            pair<int, int> curr_ids;
+
+            for (auto& it1 : p_ids) {
+                for (auto& it2 : state.particle_data.items()) {
+                    if (it1 == stoi(it2.key())) continue;
+                    next_collision_time = detect(it1, stoi(it2.key()));
+                    if (next_collision_time < 0) continue;
+                    curr_ids = make_pair(it1, stoi(it2.key()));
+                    if (next_collision_time < DELTA_T_MAX) {
+                        cout << "ADDING PAIR: (" << curr_ids.first << ", " << curr_ids.second << ") with time " << state.current_time << " + " << next_collision_time << endl;
+                        state.collisions_cache[curr_ids] = state.current_time + next_collision_time;
+                    }
+                    else {
+                        state.collisions_cache.erase(curr_ids);  // curr_ids may not may not exist
+                    }
+                }
+            }
+            cout << "subV update_collision_cache finishing" << endl;
+        }
+
+        next_collision_t get_next_collision () {
+            cout << "subV get_next_collision called" << endl;
+            next_collision_t next_collision;
+            next_collision.time = numeric_limits<TIME>::infinity();
+            TIME next_collision_time;
+            int p1_id;
+            int p2_id;
+
+            for (auto& it : state.collisions_cache) {
+                if (it.second >= 0 && it.second - state.current_time < next_collision.time) {
+                    next_collision.collision.positions.clear();
+                    next_collision.collision.positions[it.first.first] = {};
+                    next_collision.collision.positions[it.first.second] = {};
+                    cout << "NEXT COLLISION BETWEEN: " << it.first.first << ", " << it.first.second << endl;
+                    cout << "SETTING next_collision.time TO: " << it.second << " - " << state.current_time << endl;
+                    next_collision.time = it.second - state.current_time;
+                    p1_id = it.first.first;
+                    p2_id = it.first.second;
+                }
+            }
+            int num_removed = state.collisions_cache.erase(make_pair(p1_id, p2_id));
+            cout << "REMOVED PAIR (" << min(p1_id, p2_id) << ", " << max(p1_id, p2_id) << "): " << (num_removed == 1 ? "true" : "false") << endl;
+            cout << "subV get_next_collision returning" << endl;
+            return next_collision;
+        }
+
+        /*
+        // check all particles to determine when the next collision will occur and with which particles
+        next_collision_t get_next_collision (vector<int> p_ids) {
+            next_collision_t next_collision;
+            next_collision.time = numeric_limits<TIME>::infinity();
+            TIME next_collision_time;
+            auto search_particles&;
+
+            for (auto& it1 : p_ids) {
+                for (auto& it2 : state.particle_data) {
+                    next_collision_time = detect(*it1, stoi(it2.key()));
+                    if (next_collision_time >= 0 && next_collision_time < next_collision.time) {
+                        next_collision.collision.positions.clear();
+                        next_collision.collision.positions[stoi(it1.key())] = {};
+                        next_collision.collision.positions[stoi(it2.key())] = {};
+                        next_collision.time = next_collision_time;
+                    }
+                }
+            }
+            return next_collision;
+        }
 
         // check all particles to determine when the next collision will occur and with which particles
         next_collision_t get_next_collision () {
@@ -263,6 +364,7 @@ template<typename TIME> class SubV {
             }
             return next_collision;
         }
+        */
 
         // returns the time until a collision between p1_id and p2_id
         TIME detect (int p1_id, int p2_id) {
@@ -302,7 +404,7 @@ template<typename TIME> class SubV {
             float numer = max((-b) - sqrt(d), float(0));
             float denom = 2 * a;
 
-            if (numer >= denom * delta_t_max) return -1;
+            if (numer >= denom * DELTA_T_MAX) return -1;  // DELTA_T_MAX used to avoid divide-by-zero errors (needs to be larger than any reasonable simulation runtime)
 
             if (DEBUG_SV) cout << "| next collision between particles: " << numer / denom << endl;
 
@@ -320,6 +422,10 @@ template<typename TIME> class SubV {
         // retrieve the position of a particle at the current time
         vector<float> position (int p_id) {
             return position(p_id, state.current_time);
+        }
+
+        pair<int, int> make_pair (int p1_id, int p2_id) {
+            return pair<int, int>(min(p1_id, p2_id), max(p1_id, p2_id));
         }
 };
 

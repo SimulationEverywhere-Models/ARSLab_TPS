@@ -1,8 +1,8 @@
 {
     "files" : {
-        "states" : "../simulation_results/1000p/iter_1_test_output_state.txt",
-        "messages" : "../simulation_results/1000p/iter_1_test_output_messages.txt",
-        "config" : "../input/config_2D_1000p.json"
+        "states" : "../simulation_results/iter_1_test_output_state.txt",
+        "messages" : "../simulation_results/iter_1_test_output_messages.txt",
+        "config" : "../input/config_2D_4p_noRI.json"
     },
     "dimensions" : {
         "simulation" : [15, 15],

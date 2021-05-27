@@ -1,11 +1,11 @@
 {
     "files" : {
-        "states" : "../simulation_results/iter_1_test_output_state.txt",
-        "messages" : "../simulation_results/iter_1_test_output_messages.txt",
-        "config" : "../input/config_2D_4p_noRI.json"
+        "states" : "../simulation_results/2D_2000p_noRI_reduced_logs/iter_1_test_output_state.txt",
+        "messages" : "../simulation_results/2D_2000p_noRI_reduced_logs/iter_1_test_output_messages.txt",
+        "config" : "../input/config_2D_2000p_noRI.json"
     },
     "dimensions" : {
-        "simulation" : [15, 15],
+        "simulation" : [150, 150],
         "visualizer" : [900, 700]
     }
 }

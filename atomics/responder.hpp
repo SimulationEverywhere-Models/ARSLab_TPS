@@ -200,6 +200,8 @@ template<typename TIME> class Responder {
             return state.next_internal;
         }
 
+        /*
+        // Temporarily replaced with less verbose version to reduce file size
         friend ostringstream& operator<<(ostringstream& os, const typename Responder<TIME>::state_type& i) {
             if (DEBUG_RE) cout << "resp << called" << endl;
             string result = "particles: ";
@@ -213,6 +215,16 @@ template<typename TIME> class Responder {
                 result += "[(p_id:" + to_string(message.particle_id) + "): ";
                 result += "vel" + VectorUtils::get_string<float>(message.data, true) + "] ";
             }
+            os << result;
+            if (DEBUG_RE) cout << "resp << returning" << endl;
+            return os;
+        }
+        */
+
+        friend ostringstream& operator<<(ostringstream& os, const typename Responder<TIME>::state_type& i) {
+            if (DEBUG_RE) cout << "resp << called" << endl;
+            string result = "num particles: " + i.particle_data.size();
+            result += ", num velocity messages: " + i.messages.size();
             os << result;
             if (DEBUG_RE) cout << "resp << returning" << endl;
             return os;

@@ -109,6 +109,11 @@ template<typename TIME> class SubV {
                 return;
             }
 
+            if (state.next_collision.positions.size() == 2) {
+                // update collision cache to incorporate new velocities from set of messages from the responder (do this before updating next_collision_data)
+                update_collision_cache(get_keys(state.next_collision.positions));  // TODO: account for walls (maybe use negative numbers?)
+            }
+
             // get the next collision
             next_collision_t next_collision_data = get_next_collision();
             state.next_collision = next_collision_data.collision;
@@ -183,9 +188,6 @@ template<typename TIME> class SubV {
                     state.particle_data[to_string(x.particle_id)]["velocity"] = x.data;
                     if (DEBUG_SV) cout << "subV external transition: new velocity set: (p_id: " << x.particle_id << ") " << VectorUtils::get_string<float>(x.data) << endl;
 
-                    // update collision cache to incorporate new velocities
-                    update_collision_cache({x.particle_id});  // TODO: account for walls (maybe use negative numbers?)
-
                     // set next_internal to zero to immediately calculate the next collision
                     state.next_internal = 0;
 
@@ -236,7 +238,7 @@ template<typename TIME> class SubV {
 
         friend ostringstream& operator<<(ostringstream& os, const typename SubV<TIME>::state_type& i) {
             if (DEBUG_SV) cout << "subV << called" << endl;
-            string result = "particles: ";
+            string result = "(sv_id:" + to_string(i.subV_id) + ") particles: ";
             for (auto p_id = i.particle_data.begin(); p_id != i.particle_data.end(); ++p_id) {
                 result += "[(p_id:" + p_id.key() + "): ";
                 result += "pos" + VectorUtils::get_string<float>(i.particle_data[p_id.key()]["position"], true) + ", ";
@@ -257,7 +259,7 @@ template<typename TIME> class SubV {
 
         // initially populate cache with absolute times (not just time UNTIL)
         void populate_collision_cache () {
-            cout << "subV populate_collision_cache called" << endl;
+            if (DEBUG_SV) cout << "subV populate_collision_cache called" << endl;
             TIME next_collision_time;
             for (auto it1 = state.particle_data.begin(); it1 != state.particle_data.end(); ++it1) {
                 for (auto it2 = it1; it2 != state.particle_data.end(); ++it2) {
@@ -269,12 +271,12 @@ template<typename TIME> class SubV {
                     }
                 }
             }
-            cout << "subV populate_collision_cache finishing" << endl;
+            if (DEBUG_SV) cout << "subV populate_collision_cache finishing" << endl;
         }
 
         // update all particles to determine when the next collision will occur and with which particles
         void update_collision_cache (vector<int> p_ids) {
-            cout << "subV update_collision_cache called" << endl;
+            if (DEBUG_SV) cout << "subV update_collision_cache called" << endl;
             TIME next_collision_time;
             pair<int, int> curr_ids;
 
@@ -282,22 +284,29 @@ template<typename TIME> class SubV {
                 for (auto& it2 : state.particle_data.items()) {
                     if (it1 == stoi(it2.key())) continue;
                     next_collision_time = detect(it1, stoi(it2.key()));
-                    if (next_collision_time < 0) continue;
                     curr_ids = make_pair(it1, stoi(it2.key()));
-                    if (next_collision_time < DELTA_T_MAX) {
-                        cout << "ADDING PAIR: (" << curr_ids.first << ", " << curr_ids.second << ") with time " << state.current_time << " + " << next_collision_time << endl;
+                    if (next_collision_time >= 0 && next_collision_time < DELTA_T_MAX) {
+                        if (DEBUG_SV) cout << "subV update_collision_cache: adding pair: " << pair_string(curr_ids) << " with time " << state.current_time << " + " << next_collision_time << endl;
                         state.collisions_cache[curr_ids] = state.current_time + next_collision_time;
                     }
                     else {
-                        state.collisions_cache.erase(curr_ids);  // curr_ids may not may not exist
+                        int num_removed = state.collisions_cache.erase(curr_ids);  // curr_ids may not may not exist
+                        if (DEBUG_SV) cout << "subV update_collision_cache: removed inf pair " << pair_string(curr_ids) << ": " << (num_removed == 1 ? "true" : "false") << endl;
                     }
                 }
             }
-            cout << "subV update_collision_cache finishing" << endl;
+            if (CACHE_LOGGING) cout << "subV update_collision_cache:  (subV_id: "
+                                    << state.subV_id
+                                    << ") number of elements in collision cache (t: "
+                                    << state.current_time
+                                    << "): "
+                                    << state.collisions_cache.size()
+                                    << endl;
+            if (DEBUG_SV) cout << "subV update_collision_cache finishing" << endl;
         }
 
         next_collision_t get_next_collision () {
-            cout << "subV get_next_collision called" << endl;
+            if (DEBUG_SV) cout << "subV get_next_collision called" << endl;
             next_collision_t next_collision;
             next_collision.time = numeric_limits<TIME>::infinity();
             TIME next_collision_time;
@@ -309,62 +318,18 @@ template<typename TIME> class SubV {
                     next_collision.collision.positions.clear();
                     next_collision.collision.positions[it.first.first] = {};
                     next_collision.collision.positions[it.first.second] = {};
-                    cout << "NEXT COLLISION BETWEEN: " << it.first.first << ", " << it.first.second << endl;
-                    cout << "SETTING next_collision.time TO: " << it.second << " - " << state.current_time << endl;
+                    if (DEBUG_SV) cout << "subV get_next_collision: next_collision_between: " << it.first.first << ", " << it.first.second << endl;
+                    if (DEBUG_SV) cout << "subV get_next_collision: setting next_collision.time to: " << it.second << " - " << state.current_time << endl;
                     next_collision.time = it.second - state.current_time;
                     p1_id = it.first.first;
                     p2_id = it.first.second;
                 }
             }
             int num_removed = state.collisions_cache.erase(make_pair(p1_id, p2_id));
-            cout << "REMOVED PAIR (" << min(p1_id, p2_id) << ", " << max(p1_id, p2_id) << "): " << (num_removed == 1 ? "true" : "false") << endl;
-            cout << "subV get_next_collision returning" << endl;
+            if (DEBUG_SV) cout << "subV get_next_collision: removed pair (" << min(p1_id, p2_id) << ", " << max(p1_id, p2_id) << "): " << (num_removed == 1 ? "true" : "false") << endl;
+            if (DEBUG_SV) cout << "subV get_next_collision returning" << endl;
             return next_collision;
         }
-
-        /*
-        // check all particles to determine when the next collision will occur and with which particles
-        next_collision_t get_next_collision (vector<int> p_ids) {
-            next_collision_t next_collision;
-            next_collision.time = numeric_limits<TIME>::infinity();
-            TIME next_collision_time;
-            auto search_particles&;
-
-            for (auto& it1 : p_ids) {
-                for (auto& it2 : state.particle_data) {
-                    next_collision_time = detect(*it1, stoi(it2.key()));
-                    if (next_collision_time >= 0 && next_collision_time < next_collision.time) {
-                        next_collision.collision.positions.clear();
-                        next_collision.collision.positions[stoi(it1.key())] = {};
-                        next_collision.collision.positions[stoi(it2.key())] = {};
-                        next_collision.time = next_collision_time;
-                    }
-                }
-            }
-            return next_collision;
-        }
-
-        // check all particles to determine when the next collision will occur and with which particles
-        next_collision_t get_next_collision () {
-            next_collision_t next_collision;
-            next_collision.time = numeric_limits<TIME>::infinity();
-            TIME next_collision_time;
-            for (auto it1 = state.particle_data.begin(); it1 != state.particle_data.end(); ++it1) {
-                for (auto it2 = it1; it2 != state.particle_data.end(); ++it2) {
-                    if (it1 != it2) {
-                        next_collision_time = detect(stoi(it1.key()), stoi(it2.key()));
-                        if (next_collision_time >= 0 && next_collision_time < next_collision.time) {
-                            next_collision.collision.positions.clear();
-                            next_collision.collision.positions[stoi(it1.key())] = {};
-                            next_collision.collision.positions[stoi(it2.key())] = {};
-                            next_collision.time = next_collision_time;
-                        }
-                    }
-                }
-            }
-            return next_collision;
-        }
-        */
 
         // returns the time until a collision between p1_id and p2_id
         TIME detect (int p1_id, int p2_id) {
@@ -426,6 +391,19 @@ template<typename TIME> class SubV {
 
         pair<int, int> make_pair (int p1_id, int p2_id) {
             return pair<int, int>(min(p1_id, p2_id), max(p1_id, p2_id));
+        }
+
+        string pair_string (pair<int, int>& p) {
+            return "(" + to_string(p.first) + ", " + to_string(p.second) + ")";
+        }
+
+        template<typename T, typename S>
+        vector<T> get_keys (map<T, S>& test) {
+            vector<T> results;
+            for (const auto& it : test) {
+                results.push_back(it.first);
+            }
+            return results;
         }
 };
 

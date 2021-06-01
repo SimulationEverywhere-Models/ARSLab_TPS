@@ -1,6 +1,9 @@
+# Carleton University - ARSLab
+# Thomas Roller
+# Initial operations
+
 from Control import Control
 import sys
-
 
 control = Control()
 

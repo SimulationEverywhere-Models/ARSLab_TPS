@@ -1,12 +1,18 @@
+# Carleton University - ARSLab
+# Thomas Roller
+# Interface, the GUI used to access and view data
+
 import tkinter as tk
 import tkinter.scrolledtext as st
 from ListScroll import ListScroll
 import pprint
 
 # https://stackoverflow.com/questions/17985216/draw-circle-in-tkinter-python
+# create a circle
 def _create_circle(self, x, y, r, **kwargs):
     return self.create_oval(x - r, y - r , x + r, y + r, **kwargs)
 
+# add _create_circle to tkinter's Canvas object
 tk.Canvas.create_circle = _create_circle
 
 class Interface(tk.Frame):
@@ -39,6 +45,11 @@ class Interface(tk.Frame):
 
         #pprint.pprint(self.simData)
 
+    # create GUI elements
+    # args:
+    #     N/A
+    # return:
+    #     N/A
     def createWidgets (self):
         # Side panel (invisible)
         self.leftFrame = tk.Frame(self)
@@ -122,6 +133,11 @@ class Interface(tk.Frame):
         self.canvas.bind("<B1-Motion>", lambda event : self.canvas.scan_dragto(event.x, event.y, gain=1))
         self.canvas.bind("<MouseWheel>", self.zoomCanvas_CB)
 
+    # update the canvas with elements (removes all elements and redraws them)
+    # args:
+    #     N/A
+    # return:
+    #     N/A
     def updateCanvas (self):
         self.canvas.delete("all")
         for snapshot in self.simData[self.times[self.step]]:
@@ -138,15 +154,30 @@ class Interface(tk.Frame):
             directionLine = Interface.getDirectionLine(snapshot.getVel(), radius)
             self.canvas.create_line(x, y, x + directionLine[0], y - directionLine[1])  # subtract (instead of add) from y to flip
 
+    # update the GUI element that lists particles an their information
+    # args:
+    #     N/A
+    # return:
+    #     N/A
     def updateParticleList (self):
         self.particleData_list.delete(0, "end")
         for snapshot in self.simData[self.times[self.step]]:
             self.particleData_list.insert("end", self.getParticleListItem(snapshot))
 
+    # update which element is selected in the GUI element that lists the events of the simulation
+    # args:
+    #     N/A
+    # return:
+    #     N/A
     def updateEventSelection (self):
         self.events_list.activate(self.step)
         self.events_list.focus_set()  # set focus here so that the graphic updates
 
+    # updates major GUI elements (calls several other update functions)
+    # args:
+    #     N/A
+    # return:
+    #     N/A
     def updateApplication (self):
         self.updateCanvas()
         self.updateParticleList()
@@ -156,6 +187,29 @@ class Interface(tk.Frame):
         self.currEventNum_sv.set(f"Event Times ({self.step + 1} of {len(self.times)})")
         self.currEvent_sv.set(self.getEventString())
 
+    # check whether or not the user is at the first or last element and set the button states accordingly
+    # args:
+    #     N/A
+    # return:
+    #     N/A
+    def checkProgressButtonsStatus (self):
+        if (self.step <= 0):
+            print("First event reached")
+            self.stepBackward_button["state"] = "disable"
+        else:
+            self.stepBackward_button["state"] = "normal"
+
+        if (self.step >= len(self.times) - 1):
+            print("Last event reached")
+            self.stepForward_button["state"] = "disable"
+        else:
+            self.stepForward_button["state"] = "normal"
+
+    # construct the string which represents a particle (used in GUI element that lists particles and their information)
+    # args:
+    #     snapshot: a Snapshot that should be made into a string
+    # return:
+    #     string representing a particle
     def getParticleListItem (self, snapshot):
         result = "ID: " + str(snapshot.getID()) + ", "
         result += "m: " + str(self.propData[snapshot.getID()]["mass"]) + ", "
@@ -163,11 +217,21 @@ class Interface(tk.Frame):
         result += "p: " + str(snapshot.getPos())
         return result
 
+    # populate the GUI element that lists the events of the simulation
+    # args:
+    #     N/A
+    # return:
+    #     N/A
     def populateEventList (self):
         self.events_list.delete(0, "end")
         for time in self.simData:
             self.events_list.insert("end", time)
 
+    # determine an event's type and the particle(s) involved
+    # args:
+    #     N/A
+    # return:
+    #     string detailing the relevant information
     def getEventString (self):
         if (self.step == 0):
             return "Type: N/A"
@@ -182,6 +246,11 @@ class Interface(tk.Frame):
         eventIDs = event["particles"]
         return f"Type: {eventType} (IDs: {eventIDs})"
 
+    # get the vector (tail at origin) representing the direction that a particle is moving
+    # args:
+    #     desiredLength: the length that the resulting line should be
+    # return:
+    #     a vector (list) representing the line
     @staticmethod
     def getDirectionLine (vel, desiredLength):
         result = []
@@ -193,11 +262,27 @@ class Interface(tk.Frame):
             result.append((comp / velLen) * desiredLength)
         return result
 
+    # calculate the colour that a particle should be based on its position in the 3rd dimension
+    # args:
+    #     z: the position of the particle in the 3rd dimension
+    #     minZ: the position which will get one of the extreme colours
+    #     maxZ: the position which will get the other of the extreme colours
+    # return:
+    #     hexidecimal representation of the calculated colour
     @staticmethod
     def getColour (z, minZ, maxZ):
         greyScale = int(Interface.calcShade(z, minZ, maxZ, 0, 255))
         return Interface.convertColour(greyScale, greyScale, greyScale)
 
+    # calculate the shade of grey that is desired
+    # args:
+    #     z: the position of the particle in the 3rd dimension
+    #     minZ: the position which will get one of the extreme colours
+    #     maxZ: the position which will get the other of the extreme colours
+    #     minC: the minimum value for a colour (likely in [0, 255))
+    #     minC: the maximum value for a colour (likely in (0, 255])
+    # return:
+    #     value representing the shade for the given z value
     @staticmethod
     def calcShade (z, minZ, maxZ, minC, maxC):
         shade = minC + ((maxC - minC) * ((z - minZ) / (maxZ - minZ)))
@@ -208,10 +293,24 @@ class Interface(tk.Frame):
             return maxC
         return shade
 
+    # convert RGB values into hexidecimal
+    # args:
+    #     r: red component of the colour
+    #     g: green component of the colour
+    #     b: blue component of the colour
+    # return:
+    #     hexidecimal representation of the colour
     @staticmethod
     def convertColour (r, g, b):
         return "#%02x%02x%02x" % (r, g, b)
 
+    # the initial function for the GUI
+    # args:
+    #     data: data required for visualization
+    #     simDims: the dimensions of the simulated area
+    #     visDims: the dimensions of the visualization space
+    # return:
+    #     N/A
     @staticmethod
     def start (data, simDims, visDims):
         root = tk.Tk()
@@ -222,16 +321,22 @@ class Interface(tk.Frame):
     # Callback functions
     # ==================
 
+    # GUI element: "===>" button
+    # move forward by an event
     def stepForward_CB (self):
         print("Stepping forward")
         self.step += 1
         self.updateApplication()
 
+    # GUI element: "<===" button
+    # move backward by an event
     def stepBackward_CB (self):
         print("Stepping backward")
         self.step -= 1
         self.updateApplication()
 
+    # GUI element: event list
+    # update the current event internally and update the GUI's canvas
     def selectEvent_CB (self, event):
         try:
             self.step = self.events_list.curselection()[0]
@@ -239,28 +344,21 @@ class Interface(tk.Frame):
         except IndexError:
             print("WARNING: possible list mismatch (ignoring)")
 
-    def checkProgressButtonsStatus (self):
-        if (self.step <= 0):
-            print("First event reached")
-            self.stepBackward_button["state"] = "disable"
-        else:
-            self.stepBackward_button["state"] = "normal"
-
-        if (self.step >= len(self.times) - 1):
-            print("Last event reached")
-            self.stepForward_button["state"] = "disable"
-        else:
-            self.stepForward_button["state"] = "normal"
-
+    # GUI element: canvas
+    # respond to mouse scoll wheel by zooming in/out
     def zoomCanvas_CB (self, event):
         factor = 1.001 ** event.delta
         self.canvasScaleFactor *= factor  # track scaling
         self.canvas.scale(tk.ALL, event.x, event.y, factor, factor)
 
+    # GUI element: "Change Colour" button
+    # cycle through possible background colours
     def canvasColour_CB (self):
         self.currCanvasColourIndex += 1
         self.canvas.configure(bg=self.canvasColours[self.currCanvasColourIndex % len(self.canvasColours)])
 
+    # GUI element: "Reset Canvas" button
+    # reset the canvas zoom and position
     def resetCanvas_CB (self):
         print(f"Old coordinates: {[self.canvas.xview()[0], self.canvas.yview()[0]]}")
         self.canvas.scale(tk.ALL, self.visDims[0] / 2, self.visDims[1] / 2, 1 / self.canvasScaleFactor, 1 / self.canvasScaleFactor)
@@ -270,5 +368,7 @@ class Interface(tk.Frame):
         self.currCanvasColourIndex = 0
         self.canvas.configure(bg=self.canvasColours[self.currCanvasColourIndex % len(self.canvasColours)])
 
+    # GUI element: "Exit" button
+    # exit the application
     def exit_CB (self):
         self.master.destroy()

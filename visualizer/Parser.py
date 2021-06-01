@@ -1,3 +1,7 @@
+# Carleton University - ARSLab
+# Thomas Roller
+# Parser, prepares data for use
+
 from Snapshot import Snapshot
 import re
 import json
@@ -6,6 +10,7 @@ class Parser:
 
     def __init__ (self):
         print("WARNING: treat Parser class as static")
+        raise Exception
 
     # import data from log file as a list
     @staticmethod
@@ -19,11 +24,23 @@ class Parser:
         with open(filename, "r") as f:
             return json.loads(f.read())
 
-    # create data package
+    # get and prepare data for the visualizer
+    # args:
+    #     stateLogFilename: name of state log file
+    #     messageLogFilename: name of message log file
+    #     configFilename: name of (Cadmium model's) configuration file
+    #     stateTransient: whether or not to optimize for storage (True is recommended)
+    # return:
+    #     dictionary containing data for visualization
     @staticmethod
-    def getData (stateLogFilename, messageLogFilename, configFilename):
+    def getData (stateLogFilename, messageLogFilename, configFilename, stateTransient=True):
+        simulation = None
+        if (stateTransient):
+            simulation = Parser.FileIndex(stateLogFilename)
+        else:
+            simulation = Parser.StateParser.parseLog(Parser.importRaw(stateLogFilename))
         return {
-            "simulation" : Parser.StateParser.parseLog(Parser.importRaw(stateLogFilename)),
+            "simulation" : simulation,
             "events" : Parser.MessageParser.parseLog(Parser.importRaw(messageLogFilename)),
             "properties" : Parser.ConfigParser.parseParticleProperties(Parser.importJSON(configFilename))
         }
@@ -37,6 +54,11 @@ class Parser:
         def __init__ (self):
             print("WARNING: treat ConfigParser class as static")
 
+        # parse particle properties
+        # args:
+        #     data: dictionary representation of model's configuration file
+        # return:
+        #     dictionary of pIDs and related data
         @staticmethod
         def parseParticleProperties (data):
             result = {}
@@ -56,6 +78,7 @@ class Parser:
 
         def __init__ (self):
             print("WARNING: treat StateParser class as static")
+            raise Exception
 
         # parse log into a dictionary of times and Snapshots
         # args:
@@ -69,7 +92,8 @@ class Parser:
             for line in range(0, len(contents)):
                 try:
                     # line represents a time, note the time and skip to the subV line of the log
-                    time = float(contents[line])
+                    float(contents[line])
+                    time = contents[line].rstrip("\n")
                     continue
                 except ValueError:
                     # line is not a time
@@ -112,7 +136,7 @@ class Parser:
 
             return result
 
-        # scale data by 
+        # scale data by a calculated factor
         # args:
         #     data: data from log
         #     resultDims: dimensions of simulated space
@@ -137,6 +161,65 @@ class Parser:
                 result["properties"][particle]["mass"] = data["properties"][particle]["mass"]
             return result
 
+    # ------------------------------------------------
+    # Index and access information related to Cadmium's state log
+    # Avoid storing more of the file than what is required
+    # ------------------------------------------------
+
+    class FileIndex:
+
+        def __init__ (self, filename):
+            self.filename = filename
+            self.index = Parser.FileIndex.indexFile(filename)  # of format: {{key, loc}, {key, loc}, ...}
+
+        # define the [] operator
+        def __getitem__ (self, key):
+            if (key not in self.index):
+                print(f"KeyError: FileIndex could not find key: {key} ({type(key)})")
+                return KeyError
+
+            line = ""
+            with open(self.filename) as f:
+                f.seek(self.index[key], 0)
+                line = f.readline()
+
+            return Parser.StateParser.parseLine(line)
+
+        # for iteration
+        def __iter__ (self):
+            return iter(self.index)
+
+        # for iteration
+        def __next__ (self):
+            return next(self.index)
+
+        # index the important lines of a file
+        # args:
+        #     filename: name of the file to be indexed
+        # return:
+        #     dictionary of times and positions in the file
+        @staticmethod
+        def indexFile (filename):
+            result = {}
+            with open(filename, "r") as f:
+                line = "_"
+                time = -1
+                while (line):
+                    position = f.tell()
+                    line = f.readline()
+
+                    try:
+                        float(line)
+                        time = line.rstrip("\n")
+                        continue
+                    except ValueError:
+                        pass
+
+                    if (line.find("subV") >= 0):
+                        result[time] = position
+
+            return result
+
     # --------------------------------------------------
     # Parse information related to Cadmium's message log
     # --------------------------------------------------
@@ -145,7 +228,13 @@ class Parser:
 
         def __init__ (self):
             print("WARNING: treat MessageParser class as static")
+            raise Exception
 
+        # parse log into a dictionary of times and Snapshots
+        # args:
+        #     contents: list of lines from log
+        # return:
+        #     dictionary of times and Snapshops
         @staticmethod
         def parseLog (contents):
             result = {}
@@ -153,7 +242,8 @@ class Parser:
             for line in range(0, len(contents)):
                 try:
                     # line represents a time, note the time and skip to the subV line of the log
-                    time = float(contents[line])
+                    float(contents[line])
+                    time = contents[line].rstrip("\n")
                     continue
                 except ValueError:
                     # line is not a time
@@ -166,6 +256,11 @@ class Parser:
 
             return result
 
+        # parse line in log into Snapshots
+        # args:
+        #     line: line from log
+        # return:
+        #     list of Snapshots
         @staticmethod
         def parseLine (line):
             result = {

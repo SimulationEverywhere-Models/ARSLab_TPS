@@ -1,3 +1,7 @@
+# Carleton University - ARSLab
+# Thomas Roller
+# ListScroll, an element of the GUI in the Interface class
+
 import tkinter as tk
 
 class ListScroll (tk.Frame):

@@ -1,4 +1,6 @@
-# A class representing a particle at a given point in time
+# Carleton University - ARSLab
+# Thomas Roller
+# Snapshot, represents a particle at a given point in time
 
 class Snapshot:
 

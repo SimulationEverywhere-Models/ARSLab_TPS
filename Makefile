@@ -1,10 +1,10 @@
 CC=g++
 CFLAGS=-std=c++17
 
-INCLUDECADMIUM=-I ../../cadmium/include
-INCLUDEDESTIMES=-I ../../DESTimes/include
-INCLUDEJSON=-I ../../cadmium/json/include
-INCLUDEBOOST=-I /home/thomas/boost/boost
+INCLUDECADMIUM=-I ../cadmium/include
+INCLUDEDESTIMES=-I ../DESTimes/include -I ./vendor
+INCLUDEJSON=-I ../cadmium/json/include
+#INCLUDEBOOST=-I /home/thomas/boost/boost
 VARIABLES=#-DNDEBUG
 
 #CREATE BIN AND BUILD FOLDERS TO SAVE THE COMPILED FILES DURING RUNTIME

@@ -84,9 +84,14 @@ species = result["species"]
 #posRange = [-150, 150]
 #velRange = [-3, 3]
 
+#dim = 2
+#maxParticles = 2000
+#posRange = [-150, 150]
+#velRange = [-3, 3]
+
 dim = 2
-maxParticles = 2000
-posRange = [-150, 150]
+maxParticles = 10
+posRange = [-15, 15]
 velRange = [-3, 3]
 result["particles"] = genParticles(dim, maxParticles, species, posRange[0], posRange[1],
                                    velRange[0], velRange[1])

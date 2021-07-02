@@ -56,7 +56,7 @@ int main (int argc, char** argv) {
     float runtime = configJson["config"]["runtime"];
     int dim = configJson["particles"][configJson["particles"].begin().key()]["position"].size();  // get number of dimensions
     json ri_particles = prepParticlesJSON(configJson, {}, {"mass", "tau", "shape", "mean"});
-    json re_particles = prepParticlesJSON(configJson, {"position", "velocity"}, {"mass"});
+    json re_particles = prepParticlesJSON(configJson, {"velocity"}, {"mass"});  // position is not required in the responder
     json de_particles = prepParticlesJSON(configJson, {"position", "velocity"}, {"radius"});
 
     /*** RI atomic model instantiation ***/

@@ -8,6 +8,9 @@ Current functionality:
 Notes:
 - Positions in this module are not guarenteed to be up to date if the RI module is active since the
   responder cannot calculate positions on its own and subV does not report back to this module.
+  - May be wise to remove position data from the responder all together and just pass the position
+    data from collision messages to where they are needed
+    - IMPLEMENTED
 */
 
 #include <cadmium/modeling/ports.hpp>
@@ -73,6 +76,16 @@ template<typename TIME> class Responder {
             json particle_data;
             TIME next_internal;
             vector<message_t> messages;
+
+            // ID_loaded
+            // this is a property of each particle in the thesis
+            // the vector can only contain 0, 1, or 2 particles
+            unordered_map<int, vector<int>> ID_loaded;  // formatted: {pID, {directly loaded particles}}
+
+            // how do we go about restitution and their timings?
+
+            // restitution impulses ("loaded" particle property)
+            unordered_map<int, vector<int>> restitution_impulses;  // formatted: {pID, {impulses of directly loaded particles}}
         };
         state_type state;
 
@@ -120,12 +133,13 @@ template<typename TIME> class Responder {
             for (const auto &x : get_messages<typename Responder_defs::collision_in>(mbs)) {
                 if (DEBUG_RE) cout << "resp external transition: responder received collision: " << x << endl;
 
+                vector<vector<float>> msg_positions;
                 vector<int> p_ids;
 
-                // update positions (must happen before impulses are calculated)
-                // (also grab the particle IDs while we're at it)
+                // grab the particle positions (must happen before impulses are calculated)
+                // grab the particle IDs
                 for (const auto& [key, val] : x.positions) {
-                    state.particle_data[to_string(key)]["position"] = val;
+                    msg_positions.push_back(val);
                     p_ids.push_back(key);  // store particle IDs
                 }
 
@@ -134,7 +148,7 @@ template<typename TIME> class Responder {
                 // calculate impulse
                 float p1_mass = state.particle_data[to_string(p_ids[0])]["mass"];
                 float p2_mass = state.particle_data[to_string(p_ids[1])]["mass"];
-                vector<float> impulse = calc_impulse(p_ids[0], p_ids[1], p1_mass, p2_mass);
+                vector<float> impulse = calc_impulse(p_ids[0], p_ids[1], p1_mass, p2_mass, msg_positions[0], msg_positions[1]);
 
                 // calculate velocities
                 vector<float> p1_vel = VectorUtils::element_op(state.particle_data[to_string(p_ids[0])]["velocity"],
@@ -234,7 +248,7 @@ template<typename TIME> class Responder {
 
         // get the impulse after a collision
         // masses are arguments to allow for combined masses (loading)
-        vector<float> calc_impulse (int p1_id, int p2_id, float p1_mass, float p2_mass) const {
+        vector<float> calc_impulse (int p1_id, int p2_id, float p1_mass, float p2_mass, vector<float>& p1_pos, vector<float>& p2_pos) const {
             if (DEBUG_RE) cout << "resp calc_impulse called" << endl;
             vector<float> result;
 
@@ -246,8 +260,11 @@ template<typename TIME> class Responder {
                                                           VectorUtils::subtract);
 
             // unit vector pointing from p1 to p2
+            vector<float> u = VectorUtils::make_unit(VectorUtils::get_vect(p2_pos, p1_pos));
+            /*
             vector<float> u = VectorUtils::make_unit(VectorUtils::get_vect(state.particle_data[to_string(p2_id)]["position"],
                                                                            state.particle_data[to_string(p1_id)]["position"]));
+            */
 
             // calculate the component of the relative velocity which is along the vector u
             vector<float> v_u = VectorUtils::get_proj(v_1_2, u);
@@ -258,6 +275,9 @@ template<typename TIME> class Responder {
             if (DEBUG_RE) cout << "resp calc_impulse returning" << endl;
             return result;
         }
+
+    // scan branch
+    //
 };
 
 #endif

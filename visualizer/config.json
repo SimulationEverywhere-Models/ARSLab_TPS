@@ -1,11 +1,11 @@
 {
     "files" : {
-        "states" : "../simulation_results/3D_1000p_noRI/iter_1_test_output_state.txt",
-        "messages" : "../simulation_results/3D_1000p_noRI/iter_1_test_output_messages.txt",
-        "config" : "../input/config_3D_1000p_noRI.json"
+        "states" : "../simulation_results/iter_1_test_output_state.txt",
+        "messages" : "../simulation_results/iter_1_test_output_messages.txt",
+        "config" : "../input/config_2D_3p_bounce_noRI.json"
     },
     "dimensions" : {
-        "simulation" : [150, 150],
+        "simulation" : [5, 5],
         "visualizer" : [900, 700]
     },
     "settings" : {

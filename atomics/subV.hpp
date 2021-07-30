@@ -164,29 +164,34 @@ template<typename TIME> class SubV {
                     // Calculations should not be done here because, for collisions, there will be two associated messages received (one for each particle involved)
                     // - Only particle_data information should be changed
 
-                    if (DEBUG_SV) cout << "subV external transition: handling impulse: " << (x.is_ri ? "true" : "false") << endl;
+                    if (DEBUG_SV) cout << "subV external transition: handling impulse: " << (x.purpose == "ri" ? "true" : "false") << endl;
+                    if (DEBUG_SV) cout << "subV external transition: handling type: " << x.purpose << endl;
                     if (DEBUG_SV) cout << "subV external transition: current time (subV_id: " << state.subV_id << "): " << state.current_time << endl;
 
-                    state.particle_data[to_string(x.particle_id)]["position"] = position(x.particle_id);
-                    //state.particle_data[to_string(x.particle_id)]["position"] = state.next_collision.positions[x.particle_id];  // cannot do this (RI messages will break this)
-                    if (DEBUG_SV) cout << "subV external transition: received velocity: " << VectorUtils::get_string<float>(x.data)
-                                       << ", set position: " << VectorUtils::get_string<float>(state.particle_data[to_string(x.particle_id)]["position"]) << endl;
+                    // process each particle involved in the message
+                    for (int particle_id : x.particle_ids) {
+                        // set the position
+                        state.particle_data[to_string(particle_id)]["position"] = position(particle_id);
+                        //state.particle_data[to_string(x.particle_id)]["position"] = state.next_collision.positions[x.particle_id];  // cannot do this (RI messages will break this)
+                        if (DEBUG_SV) cout << "subV external transition: received velocity: " << VectorUtils::get_string<float>(x.data)
+                                        << ", set position: " << VectorUtils::get_string<float>(state.particle_data[to_string(particle_id)]["position"]) << endl;
 
-                    // update related time value for particle (last time position changed)
-                    // must be updated after position is calculated
-                    state.particle_times[x.particle_id] = state.current_time;
+                        // update related time value for particle (last time position changed)
+                        // must be updated after position is calculated
+                        state.particle_times[particle_id] = state.current_time;
 
-                    if (DEBUG_SV && false) {
-                        // report position to the command line
-                        cout << "subV external transition: subV_id: " << state.subV_id
-                             << ", time: " << state.current_time
-                             << ", p_id: " << x.particle_id
-                             << ", position: " << VectorUtils::get_string<float>(state.particle_data[to_string(x.particle_id)]["position"]) <<endl;
+                        if (DEBUG_SV && false) {
+                            // report position to the command line
+                            cout << "subV external transition: subV_id: " << state.subV_id
+                                << ", time: " << state.current_time
+                                << ", p_id: " << particle_id
+                                << ", position: " << VectorUtils::get_string<float>(state.particle_data[to_string(particle_id)]["position"]) <<endl;
+                        }
+
+                        // incorporate newly received velocity
+                        state.particle_data[to_string(particle_id)]["velocity"] = x.data;
+                        if (DEBUG_SV) cout << "subV external transition: new velocity set: (p_id: " << particle_id << ") " << VectorUtils::get_string<float>(x.data) << endl;
                     }
-
-                    // incorporate newly received velocity
-                    state.particle_data[to_string(x.particle_id)]["velocity"] = x.data;
-                    if (DEBUG_SV) cout << "subV external transition: new velocity set: (p_id: " << x.particle_id << ") " << VectorUtils::get_string<float>(x.data) << endl;
 
                     // set next_internal to zero to immediately calculate the next collision
                     state.next_internal = 0;
@@ -309,7 +314,6 @@ template<typename TIME> class SubV {
             if (DEBUG_SV) cout << "subV get_next_collision called" << endl;
             next_collision_t next_collision;
             next_collision.time = numeric_limits<TIME>::infinity();
-            TIME next_collision_time;
             int p1_id;
             int p2_id;
 

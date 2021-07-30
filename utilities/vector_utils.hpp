@@ -33,7 +33,7 @@ class VectorUtils {
         static vector<COMPONENT> element_op (vector<COMPONENT> v1, vector<COMPONENT> v2, COMPONENT (*operation)(COMPONENT, COMPONENT)) {
             if (v1.size() != v2.size()) return {};
             vector<COMPONENT> result;
-            for (int i = 0; i < v1.size(); ++i) {
+            for (unsigned int i = 0; i < v1.size(); ++i) {
                 result.push_back(operation(v1[i], v2[i]));
             }
             return result;
@@ -82,10 +82,19 @@ class VectorUtils {
             return element_dist(prj, dot_prod(org, prj), multiply);
         }
 
+        // concatenate two vectors
+        template <typename T>
+        static vector<T> concat (vector<T> v1, vector<T> v2) {
+            for (COMPONENT i : v2) {
+                v1.push_back(i);
+            }
+            return v1;
+        }
+
         template <typename T>
         static string get_string (vector<T> v, bool brackets) {
             string result = "";
-            for (int i = 0; i < v.size(); ++i) {
+            for (unsigned int i = 0; i < v.size(); ++i) {
                 result += to_string(v[i]);
                 if (i != v.size() - 1) {
                     result += " ";

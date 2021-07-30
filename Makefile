@@ -1,9 +1,12 @@
 CC=g++
-CFLAGS=-std=c++17
+CFLAGS=-std=c++17# -Wall
 
 INCLUDECADMIUM=-I ../cadmium/include
 INCLUDEDESTIMES=-I ../DESTimes/include -I ./vendor
 INCLUDEJSON=-I ../cadmium/json/include
+#INCLUDECADMIUM=-I ../../cadmium/include
+#INCLUDEDESTIMES=-I ../../DESTimes/include -I ./vendor
+#INCLUDEJSON=-I ../../cadmium/json/include
 #INCLUDEBOOST=-I /home/thomas/boost/boost
 VARIABLES=#-DNDEBUG
 
@@ -15,6 +18,9 @@ results_folder := $(shell mkdir -p simulation_results)
 #TARGET TO COMPILE ALL THE TESTS TOGETHER (NOT SIMULATOR)
 message.o: data_structures/message.cpp data_structures/message.hpp
 	$(CC) -g -c $(CFLAGS) $(INCLUDECADMIUM) $(INCLUDEDESTIMES) $(INCLUDEJSON) $(VARIABLES) data_structures/message.cpp -o build/message.o
+
+node.o: data_structures/node.cpp data_structures/node.hpp
+	$(CC) -g -c $(CFLAGS) $(INCLUDECADMIUM) $(INCLUDEDESTIMES) $(INCLUDEJSON) $(VARIABLES) data_structures/node.cpp -o build/node.o
 
 main_random_impulse_test.o: test/main_random_impulse_test.cpp
 	$(CC) -g -c $(CFLAGS) $(INCLUDECADMIUM) $(INCLUDEDESTIMES) $(INCLUDEJSON) $(VARIABLES) test/main_random_impulse_test.cpp -o build/main_random_impulse_test.o
@@ -29,16 +35,16 @@ main_iter_1_test.o: test/main_iter_1_test.cpp
 	$(CC) -g -c $(CFLAGS) $(INCLUDECADMIUM) $(INCLUDEDESTIMES) $(INCLUDEJSON) $(INCLUDEBOOST) $(VARIABLES) test/main_iter_1_test.cpp -o build/main_iter_1_test.o
 
 ri: main_random_impulse_test.o message.o
-	$(CC) $(VARIABLES) -g -o bin/RI_TEST build/main_random_impulse_test.o build/message.o
+	$(CC) $(CFLAGS) $(VARIABLES) -g -o bin/RI_TEST build/main_random_impulse_test.o build/message.o
 
 ri_re: main_ri_responder_test.o message.o
-	$(CC) $(VARIABLES) -g -o bin/RI_RESP_TEST build/main_ri_responder_test.o build/message.o
+	$(CC) $(CFLAGS) $(VARIABLES) -g -o bin/RI_RESP_TEST build/main_ri_responder_test.o build/message.o
 
 ri_re_tr: main_ri_re_tr_test.o message.o
-	$(CC) $(VARIABLES) -g -o bin/RI_RE_TR_TEST build/main_ri_re_tr_test.o build/message.o
+	$(CC) $(CFLAGS) $(VARIABLES) -g -o bin/RI_RE_TR_TEST build/main_ri_re_tr_test.o build/message.o
 
-iter_1: main_iter_1_test.o message.o
-	$(CC) $(VARIABLES) -g -o bin/ITER_1_TEST build/main_iter_1_test.o build/message.o
+iter_1: main_iter_1_test.o message.o node.o
+	$(CC) $(CFLAGS) $(VARIABLES) -g -o bin/ITER_1_TEST build/main_iter_1_test.o build/message.o build/node.o
 
 #TARGET TO COMPILE EVERYTHING (ABP SIMULATOR + TESTS TOGETHER)
 all: ri ri_re ri_re_tr iter_1

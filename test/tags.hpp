@@ -10,6 +10,6 @@ Define control tags in a central location
 #define DEBUG_TR false  // tracker
 #define DEBUG_SV false  // subV
 
-#define CACHE_LOGGING true  // whether or now to send the cache size to the terminal
+#define CACHE_LOGGING false  // whether or now to send the cache size to the terminal
 
 #endif

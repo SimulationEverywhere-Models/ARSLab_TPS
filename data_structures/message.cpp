@@ -10,15 +10,15 @@
 
 // Output stream
 ostream& operator<< (ostream& os, const message_t& msg) {
-    string result = "(p_id:" + to_string(msg.particle_id) + "): [";
+    string result = "(p_ids:" + VectorUtils::get_string<int>(msg.particle_ids) + "): [";
     result += VectorUtils::get_string<float>(msg.data, true);
-    os << result + ", is_ri: " << (msg.is_ri ? "true" : "false") << "]";
+    os << result + ", type: " << msg.purpose << "]";
     return os;
 }
 
 // Input stream
 istream& operator>> (istream& is, message_t& msg) {
-    for (int i = 0; i < msg.data.size(); ++i) {
+    for (unsigned int i = 0; i < msg.data.size(); ++i) {
         is >> msg.data[i];
     }
     //is >> msg.data;
@@ -29,15 +29,15 @@ istream& operator>> (istream& is, message_t& msg) {
 
 // Output stream
 ostream& operator<< (ostream& os, const tracker_message_t& msg) {
-    string result = "(p_id:" + to_string(msg.particle_id) + "): [";
+    string result = "(p_ids:" + VectorUtils::get_string<int>(msg.particle_ids) + "): [";
     result += VectorUtils::get_string<float>(msg.data, true);
-    os << result + ", is_ri: " << (msg.is_ri ? "true" : "false") << "]";
+    os << result + ", type: " << msg.purpose << "]";
     return os;
 }
 
 // Input stream
 istream& operator>> (istream& is, tracker_message_t& msg) {
-    for (int i = 0; i < msg.data.size(); ++i) {
+    for (unsigned int i = 0; i < msg.data.size(); ++i) {
         is >> msg.data[i];
     }
     //is >> msg.data;

@@ -79,7 +79,7 @@ template<typename TIME> class RandomImpulse {
             state.particle_data = j;
             state.dim = dim;
             state.do_ri = do_ri;
-            state.impulse.is_ri = true;
+            state.impulse.purpose = "ri";
 
             // go through particles and get the times at which they should receive RIs
             for (auto it = state.particle_data.begin(); it != state.particle_data.end(); ++it) {
@@ -161,7 +161,7 @@ template<typename TIME> class RandomImpulse {
 
             // finish the impulse message
             state.impulse.data = next_impulse;
-            state.impulse.particle_id = currId;
+            state.impulse.particle_ids = {currId};
             if (DEBUG_RI) cout << "ri internal transition finishing" << endl;
         }
 
@@ -184,12 +184,12 @@ template<typename TIME> class RandomImpulse {
             if (DEBUG_RI) cout << "ri output called" << endl;
             typename make_message_bags<output_ports>::type bags;
             vector<message_t> bag_port_out;
-            if (state.impulse.particle_id != -1) {
+            if (state.impulse.particle_ids.size() != 0) {
                 bag_port_out.push_back(state.impulse);
                 if (DEBUG_RI) cout << "ri output not sending impulse" << endl;
             }
             else {
-                if (DEBUG_RI) cout << "ri output sending impulse (p_id: " << state.impulse.particle_id << "): " << VectorUtils::get_string<float>(state.impulse.data) << endl;
+                if (DEBUG_RI) cout << "ri output sending impulse (p_id: " << VectorUtils::get_string<int>(state.impulse.particle_ids) << "): " << VectorUtils::get_string<float>(state.impulse.data) << endl;
             }
             get_messages<typename RandomImpulse_defs::impulse_out>(bags) = bag_port_out;
             if (DEBUG_RI) cout << "ri output returning" << endl;
@@ -204,11 +204,11 @@ template<typename TIME> class RandomImpulse {
 
         friend ostringstream& operator<<(ostringstream& os, const typename RandomImpulse<TIME>::state_type& i) {
             if (DEBUG_RI) cout << "ri << called" << endl;
-            os << "impulse [(p_id:" << i.impulse.particle_id << "): imp" << VectorUtils::get_string<float>(i.impulse.data, true) << "]";
+            os << "impulse [(p_id:" << VectorUtils::get_string<int>(i.impulse.particle_ids) << "): imp" << VectorUtils::get_string<float>(i.impulse.data, true) << "]";
             if (DEBUG_RI) cout << "ri << returning" << endl;
             return os;
         }
-    
+
     private:
         default_random_engine generator;  // used to generate numbers from gamma distribution
         const float pi = 3.14159265359;

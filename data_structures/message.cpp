@@ -13,13 +13,6 @@ ostream& operator<< (ostream& os, const message_t& msg) {
     string result = "(p_ids:" + VectorUtils::get_string<int>(msg.particle_ids) + "): [";
     result += VectorUtils::get_string<float>(msg.data, true);
     os << result + ", type: " << msg.purpose << "]";
-    if (msg.positions.size() > 0) {
-        os << ", pos: [";
-        for (const auto& [key, val] : msg.positions) {
-            os << "[id: " + to_string(key) + ": " + VectorUtils::get_string<float>(val, true) + "]";
-        }
-        os << "]";
-    }
     return os;
 }
 
@@ -65,6 +58,25 @@ ostream& operator<< (ostream& os, const collision_message_t& msg) {
 
 // Input stream
 istream& operator>> (istream& is, collision_message_t& msg) {
+    // incomplete
+    return is;
+}
+
+/*** logging_message_t ***/
+
+// Output stream
+ostream& operator<< (ostream& os, const logging_message_t& msg) {
+    os << "[";
+    os << "subV_id: " << msg.subV_id;
+    os << ", p_id: " << msg.particle_id;
+    os << ", vel: " << VectorUtils::get_string<float>(msg.velocity, true);
+    os << ", pos: " << VectorUtils::get_string<float>(msg.position, true);
+    os << "]";
+    return os;
+}
+
+// Input stream
+istream& operator>> (istream& is, logging_message_t& msg) {
     // incomplete
     return is;
 }

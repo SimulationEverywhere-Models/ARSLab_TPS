@@ -39,6 +39,7 @@ struct SubV_defs {
     struct collision_out : public out_port<collision_message_t> {};
     //struct departure_out : public out_port<___> {};
     //struct arrival_out : public out_port<___> {};
+    struct logging_out : public out_port<logging_message_t> {};
 };
 
 template<typename TIME> class SubV {
@@ -53,7 +54,8 @@ template<typename TIME> class SubV {
         */
 
         using input_ports = tuple<typename SubV_defs::response_in>;
-        using output_ports = tuple<typename SubV_defs::collision_out>;
+        using output_ports = tuple<typename SubV_defs::collision_out,
+                                   typename SubV_defs::logging_out>;
 
         struct state_type {
             // state information
@@ -66,6 +68,7 @@ template<typename TIME> class SubV {
             bool awaiting_response;  // whether or not subV has received a response from the responder (if not, do not preform further calculations until received)
             bool sending_collision;  // whether or not to send a collision (stop message sending is receiving an RI or a response message)
             unordered_map<pair<int, int>, float, boost::hash<pair<int, int>>> collisions_cache;  // cache collision times for non-inf times
+            vector<logging_message_t> logging_messages;  // messages that store position for logging purposes
         };
         state_type state;
 
@@ -100,8 +103,9 @@ template<typename TIME> class SubV {
             // update the current time before doing work
             state.current_time += state.next_internal;  // next_internal was set by the previous call to int/ext transition
 
-            // reset flag (can be done here since output is called before internal transition in Cadmium)
+            // reset flag and clear logging messages (can be done here since output is called before internal transition in Cadmium)
             state.sending_collision = true;
+            state.logging_messages.clear();
 
             if (state.awaiting_response) {
                 state.next_internal = numeric_limits<TIME>::infinity();
@@ -190,6 +194,12 @@ template<typename TIME> class SubV {
 
                         // incorporate newly received velocity
                         state.particle_data[to_string(particle_id)]["velocity"] = x.data;
+
+                        // prepare logging messages
+                        state.logging_messages.push_back(
+                            logging_message_t(state.subV_id, particle_id, state.particle_data[to_string(particle_id)]["velocity"], state.particle_data[to_string(particle_id)]["position"])
+                        );
+
                         if (DEBUG_SV) cout << "subV external transition: new velocity set: (p_id: " << particle_id << ") " << VectorUtils::get_string<float>(x.data) << endl;
                     }
 
@@ -229,6 +239,15 @@ template<typename TIME> class SubV {
                 if (DEBUG_SV) cout << "subV output: no collision being sent" << endl;
             }
             get_messages<typename SubV_defs::collision_out>(bags) = bag_port_out;
+
+            if (state.logging_messages.size() > 0) {
+                get_messages<typename SubV_defs::logging_out>(bags) = state.logging_messages;
+                if (DEBUG_SV) cout << "subV output: sending logging message(s)" << endl;
+            }
+            else {
+                if (DEBUG_SV) cout << "subV output: no logging message(s) sent" << endl;
+            }
+
             if (DEBUG_SV) cout << "subV output returning" << endl;
             return bags;
         }

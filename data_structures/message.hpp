@@ -16,28 +16,23 @@ Used to transport impulses (typically only when sent from the random impulse mod
 Members:
 - data: impulse or velocity
 - particle_ids: vector of particles the data applies to
-- positions: used for logging and is only non-empty when the responder sends a loading message (serves no functional purpose within TPS)
 - purpose: informs on the purpose of the message (ex. "load", "rest", "ri")
 */
 struct message_t {
-    message_t () : data({}), particle_ids({}), purpose("n/a"), positions({}) {}
-    message_t (vector<float> i_data) : data(i_data), particle_ids({}), purpose("n/a"), positions({}) {}
-    message_t (vector<float> i_data, vector<int> i_particle_ids) : data(i_data), particle_ids(i_particle_ids), purpose("n/a"), positions({}) {}
-    message_t (vector<float> i_data, vector<int> i_particle_ids, string i_purpose) : data(i_data), particle_ids(i_particle_ids), purpose(i_purpose), positions({}) {}
-    message_t (vector<float> i_data, vector<int> i_particle_ids, string i_purpose, map<int, vector<float>> i_positions) : data(i_data), particle_ids(i_particle_ids), purpose(i_purpose), positions(i_positions) {}
+    message_t () : data({}), particle_ids({}), purpose("n/a") {}
+    message_t (vector<float> i_data) : data(i_data), particle_ids({}), purpose("n/a") {}
+    message_t (vector<float> i_data, vector<int> i_particle_ids) : data(i_data), particle_ids(i_particle_ids), purpose("n/a") {}
+    message_t (vector<float> i_data, vector<int> i_particle_ids, string i_purpose) : data(i_data), particle_ids(i_particle_ids), purpose(i_purpose) {}
 
     vector<float> data;  // impulse or vecocity
     vector<int> particle_ids;
     string purpose;
-    map<int, vector<float>> positions;  // used for logging purposes (should not be used for actual in-program use)
 };
 
 /*
 Used to label standard message_t messages when being sent from the responder to the detector.
 Members:
 - subV_ids: the sub-volumes that the message is relevant to
-
-Note: tracker messages do not carry "positions" from message_t messages since it is a logging tool only needed once
 */
 struct tracker_message_t : message_t {
     tracker_message_t () {}
@@ -60,6 +55,24 @@ struct collision_message_t {
     map<int, vector<float>> positions;
 };
 
+/*
+Used to log the velocities and positions of particles that have been updated.
+Members:
+- subV_id: the sub-volume from which the message originates
+- particle_id: the particle that the velocity and position belongs to
+- vecolity: the particle's velocity
+- position: the particle's position
+*/
+struct logging_message_t {
+    logging_message_t () : subV_id(-1), particle_id(-1), velocity({}), position({}) {}
+    logging_message_t (int i_subV_id, int i_particle_id, vector<float> i_velocity, vector<float> i_position) : subV_id(i_subV_id), particle_id(i_particle_id), velocity(i_velocity), position(i_position) {}
+
+    int subV_id;
+    int particle_id;
+    vector<float> velocity;
+    vector<float> position;
+};
+
 istream& operator>> (istream& is, message_t& msg);
 ostream& operator<< (ostream& os, const message_t& msg);
 
@@ -68,5 +81,8 @@ ostream& operator<< (ostream& os, const tracker_message_t& msg);
 
 istream& operator>> (istream& is, collision_message_t& msg);
 ostream& operator<< (ostream& os, const collision_message_t& msg);
+
+istream& operator>> (istream& is, logging_message_t& msg);
+ostream& operator<< (ostream& os, const logging_message_t& msg);
 
 #endif

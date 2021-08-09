@@ -367,7 +367,7 @@ template<typename TIME> class Responder {
                 }
 
                 // prepare messages
-                state.collision_messages.push_back(message_t(loading_velocity, involved_ids, "load"));  // string is for the message purpose (mainly logging purposes)
+                state.collision_messages.push_back(message_t(loading_velocity, involved_ids, "load", x.positions));  // string is for the message purpose (mainly logging purposes)
 
                 // set next internal to the smallest restitution time
                 state.next_internal = 0;  // immediately send new velocities to subVs

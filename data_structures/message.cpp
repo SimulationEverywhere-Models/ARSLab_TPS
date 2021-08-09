@@ -13,6 +13,13 @@ ostream& operator<< (ostream& os, const message_t& msg) {
     string result = "(p_ids:" + VectorUtils::get_string<int>(msg.particle_ids) + "): [";
     result += VectorUtils::get_string<float>(msg.data, true);
     os << result + ", type: " << msg.purpose << "]";
+    if (msg.positions.size() > 0) {
+        os << ", pos: [";
+        for (const auto& [key, val] : msg.positions) {
+            os << "[id: " + to_string(key) + ": " + VectorUtils::get_string<float>(val, true) + "]";
+        }
+        os << "]";
+    }
     return os;
 }
 

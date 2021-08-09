@@ -2,7 +2,7 @@
     "files" : {
         "states" : "../simulation_results/iter_1_test_output_state.txt",
         "messages" : "../simulation_results/iter_1_test_output_messages.txt",
-        "config" : "../input/config_2D_3p_bounce_noRI.json"
+        "config" : "../input/config_2D_2p_noRI.json"
     },
     "dimensions" : {
         "simulation" : [5, 5],

@@ -195,8 +195,6 @@ template<typename TIME> class SubV {
 
                     // set next_internal to zero to immediately calculate the next collision
                     state.next_internal = 0;
-
-                    // invalidate the message
                 }
             }
 
@@ -338,7 +336,7 @@ template<typename TIME> class SubV {
         // returns the time until a collision between p1_id and p2_id
         TIME detect (int p1_id, int p2_id) {
             float delta_blocking = (float)state.particle_data[to_string(p1_id)]["radius"] + (float)state.particle_data[to_string(p2_id)]["radius"];
-            if (delta_blocking == 0) return -1;
+            if (delta_blocking == 0) return -1;  // check that both particles are not points
 
             vector<float> p1_u = position(p1_id);
             vector<float> p2_u = position(p2_id);
@@ -368,6 +366,7 @@ template<typename TIME> class SubV {
 
             float d = (b * b) - (4 * a * c);
 
+            // postive b indicates the particles are not heading toward each other while a negative d means there are no real solutions indicating the particles never cross paths
             if (b >= 0 || d < 0) return -1;
 
             float numer = max((-b) - sqrt(d), float(0));

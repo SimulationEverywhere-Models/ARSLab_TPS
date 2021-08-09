@@ -81,6 +81,14 @@ template<typename TIME> class SubV {
 
             state.particle_data = j;
 
+            // for logging purposes, send messages reporting the initial states of every particle
+            // one message for every particle
+            for (auto it = state.particle_data.begin(); it != state.particle_data.end(); ++it) {
+                state.logging_messages.push_back(
+                    logging_message_t(state.subV_id, stoi(it.key()), state.particle_data[it.key()]["velocity"], state.particle_data[it.key()]["position"])
+                );
+            }
+
             // initialization
             // TODO: subV_id should be initialized or calculated from arguments
             state.subV_id = 1;

@@ -25,6 +25,7 @@ Notes:
 #include <math.h>
 #include <map>
 #include <nlohmann/json.hpp>
+#include <set>
 
 #include "../test/tags.hpp"  // debug tags
 #include "../utilities/vector_utils.hpp"  // vector functions

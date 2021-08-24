@@ -21,11 +21,11 @@ class Interface(tk.Frame):
         super().__init__(master)
         self.master = master
         self.master.title("TPS Diagnostic Visualizer")
-        self.simData = data["simulation"]
-        self.eventData = data["events"]
+        self.eventData = data["events"]  # only lists which particles have changed
         self.propData = data["properties"]
         self.step = 0
-        self.times = list(self.simData)
+        self.times = list(self.eventData)
+        self.particleDict = self.buildParticleList()  # lists the position of every particle for every time step
         self.visDims = visDims
         self.scaleFactor = (min(visDims) / max(simDims)) * 0.3  # used to scale elements
         self.visDims[1] *= -1  # allow proper viewing (related to the flip on the y-axis
@@ -89,7 +89,9 @@ class Interface(tk.Frame):
         self.listsFrame = tk.LabelFrame(self.leftFrame, text="")
         self.listsFrame.pack(side="top", padx=5, pady=5)
 
-        self.particleData_label = tk.Label(self.listsFrame, text=f"Particles ({len(self.simData[self.times[self.step]])})")
+        self.numParticles_sv = tk.StringVar()
+        self.numParticles_sv.set(f"Particles ({len(self.particleDict[self.times[self.step]])})")
+        self.particleData_label = tk.Label(self.listsFrame, textvariable=self.numParticles_sv)
         self.particleData_label.pack(side="top", padx=5, pady=0)
 
         self.particleData_list = ListScroll(self.listsFrame)
@@ -140,7 +142,7 @@ class Interface(tk.Frame):
     #     N/A
     def updateCanvas (self):
         self.canvas.delete("all")
-        for snapshot in self.simData[self.times[self.step]]:
+        for snapshot in self.particleDict[self.times[self.step]].values():
             x = (snapshot.getPos()[0] * self.scaleFactor) + (self.visDims[0] / 2)
             y = (snapshot.getPos()[1] * self.scaleFactor) + (self.visDims[1] / 2)
             y *= -1  # flip to represent particles with +y on top (as opposed to tkinter's +y on bottom)
@@ -154,6 +156,17 @@ class Interface(tk.Frame):
             directionLine = Interface.getDirectionLine(snapshot.getVel(), radius)
             self.canvas.create_line(x, y, x + directionLine[0], y - directionLine[1])  # subtract (instead of add) from y to flip
 
+    def buildParticleList (self):
+        result = {}
+        for step in range(0, len(self.times)):
+            if (step != 0):
+                result[self.times[step]] = result[self.times[step - 1]].copy()  # bring forward the old data to be modified
+            for snapshot in self.eventData[self.times[step]]["snapshots"]:
+                if (self.times[step] not in result):  # if the time is not in the result...
+                    result[self.times[step]] = {}     # add it as a dictionary
+                result[self.times[step]][snapshot.getID()] = snapshot  # update the old data for the current step
+        return result
+
     # update the GUI element that lists particles an their information
     # args:
     #     N/A
@@ -161,7 +174,7 @@ class Interface(tk.Frame):
     #     N/A
     def updateParticleList (self):
         self.particleData_list.delete(0, "end")
-        for snapshot in self.simData[self.times[self.step]]:
+        for snapshot in self.particleDict[self.times[self.step]].values():
             self.particleData_list.insert("end", self.getParticleListItem(snapshot))
 
     # update which element is selected in the GUI element that lists the events of the simulation
@@ -186,6 +199,7 @@ class Interface(tk.Frame):
         self.currTime_sv.set(f"Time: {self.times[self.step]}")
         self.currEventNum_sv.set(f"Event Times ({self.step + 1} of {len(self.times)})")
         self.currEvent_sv.set(self.getEventString())
+        self.numParticles_sv.set(f"Particles ({len(self.particleDict[self.times[self.step]])})")
 
     # check whether or not the user is at the first or last element and set the button states accordingly
     # args:
@@ -224,7 +238,7 @@ class Interface(tk.Frame):
     #     N/A
     def populateEventList (self):
         self.events_list.delete(0, "end")
-        for time in self.simData:
+        for time in self.eventData:
             self.events_list.insert("end", time)
 
     # determine an event's type and the particle(s) involved
@@ -243,7 +257,7 @@ class Interface(tk.Frame):
             print(f"Invalid key: {time}")
             return "Error"
         eventType = event["type"]
-        eventIDs = event["particles"]
+        eventIDs = [x.getID() for x in event["snapshots"]]
         return f"Type: {eventType} (IDs: {eventIDs})"
 
     # get the vector (tail at origin) representing the direction that a particle is moving
@@ -258,6 +272,8 @@ class Interface(tk.Frame):
         for comp in vel:
             velLen += comp ** 2
         velLen = velLen ** 0.5
+        if (velLen == 0):
+            velLen = 1
         for comp in vel:
             result.append((comp / velLen) * desiredLength)
         return result

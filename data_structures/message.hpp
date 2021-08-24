@@ -65,12 +65,14 @@ Members:
 */
 struct logging_message_t {
     logging_message_t () : subV_id(-1), particle_id(-1), velocity({}), position({}) {}
-    logging_message_t (int i_subV_id, int i_particle_id, vector<float> i_velocity, vector<float> i_position) : subV_id(i_subV_id), particle_id(i_particle_id), velocity(i_velocity), position(i_position) {}
+    logging_message_t (int i_subV_id, int i_particle_id, vector<float> i_velocity, vector<float> i_position, string i_purpose) :
+        subV_id(i_subV_id), particle_id(i_particle_id), velocity(i_velocity), position(i_position), purpose(i_purpose) {}
 
     int subV_id;
     int particle_id;
     vector<float> velocity;
     vector<float> position;
+    string purpose;
 };
 
 istream& operator>> (istream& is, message_t& msg);

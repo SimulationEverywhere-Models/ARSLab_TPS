@@ -71,6 +71,7 @@ ostream& operator<< (ostream& os, const logging_message_t& msg) {
     os << ", p_id: " << msg.particle_id;
     os << ", vel: " << VectorUtils::get_string<float>(msg.velocity, true);
     os << ", pos: " << VectorUtils::get_string<float>(msg.position, true);
+    os << ", type: " << msg.purpose;
     os << "]";
     return os;
 }

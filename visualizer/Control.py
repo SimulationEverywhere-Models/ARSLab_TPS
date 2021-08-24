@@ -27,7 +27,8 @@ class Control:
         try:
             # attempt to load and prepare data (caught if a MemoryError is raised)
             # - state log parsing method can be set with the "transient" argument
-            data = Parser.getData(setup["files"]["states"], setup["files"]["messages"], setup["files"]["config"], setup["settings"]["stateLoading_isTransient"])
+            #data = Parser.getData(setup["files"]["states"], setup["files"]["messages"], setup["files"]["config"], setup["settings"]["stateLoading_isTransient"])
+            data = Parser.getData(setup["files"]["messages"], setup["files"]["config"])
         except MemoryError:
             # one or more files were collectively too large for Python to load into memory
             # print information for user (file sizes and suggested action(s))

@@ -85,7 +85,7 @@ template<typename TIME> class SubV {
             // one message for every particle
             for (auto it = state.particle_data.begin(); it != state.particle_data.end(); ++it) {
                 state.logging_messages.push_back(
-                    logging_message_t(state.subV_id, stoi(it.key()), state.particle_data[it.key()]["velocity"], state.particle_data[it.key()]["position"])
+                    logging_message_t(state.subV_id, stoi(it.key()), state.particle_data[it.key()]["velocity"], state.particle_data[it.key()]["position"], "init")
                 );
             }
 
@@ -205,7 +205,7 @@ template<typename TIME> class SubV {
 
                         // prepare logging messages
                         state.logging_messages.push_back(
-                            logging_message_t(state.subV_id, particle_id, state.particle_data[to_string(particle_id)]["velocity"], state.particle_data[to_string(particle_id)]["position"])
+                            logging_message_t(state.subV_id, particle_id, state.particle_data[to_string(particle_id)]["velocity"], state.particle_data[to_string(particle_id)]["position"], x.purpose)
                         );
 
                         if (DEBUG_SV) cout << "subV external transition: new velocity set: (p_id: " << particle_id << ") " << VectorUtils::get_string<float>(x.data) << endl;

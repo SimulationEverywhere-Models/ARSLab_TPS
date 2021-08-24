@@ -33,7 +33,7 @@ class Parser:
     # return:
     #     dictionary containing data for visualization
     @staticmethod
-    def getData (stateLogFilename, messageLogFilename, configFilename, stateTransient=True):
+    def getData_depr (stateLogFilename, messageLogFilename, configFilename, stateTransient=True):
         simulation = None
         if (stateTransient):
             simulation = Parser.FileIndex(stateLogFilename)
@@ -42,6 +42,20 @@ class Parser:
         return {
             "simulation" : simulation,
             "events" : Parser.MessageParser.parseLog(Parser.importRaw(messageLogFilename)),
+            "properties" : Parser.ConfigParser.parseParticleProperties(Parser.importJSON(configFilename))
+        }
+
+    # get and prepare data for the visualizer
+    # args:
+    #     messageLogFilename: name of message log file
+    #     configFilename: name of (Cadmium model's) configuration file
+    # return:
+    #     dictionary containing data for visualization
+    @staticmethod
+    def getData (messageLogFilename, configFilename):
+        result = Parser.UnifiedParser.parseLog(Parser.importRaw(messageLogFilename))
+        return {
+            "events" : result,
             "properties" : Parser.ConfigParser.parseParticleProperties(Parser.importJSON(configFilename))
         }
 
@@ -125,12 +139,12 @@ class Parser:
             for particle in data:
                 match = re.match(r"\(p_id:(?P<id>\d+)\): pos<(?P<pos>.+)>, vel<(?P<vel>.+)>", particle)
                 if (match is None):
-                    print(f"WARNING: no match for: {particle}")
+                    print(f"WARNING (state): no match for: {particle}")
                     continue
                 result.append(Snapshot(
-                        int(match.group("id")),
-                        [float(x) for x in match.group("pos").split(" ")],
-                        [float(x) for x in match.group("vel").split(" ")]
+                        p_id=int(match.group("id")),
+                        pos=[float(x) for x in match.group("pos").split(" ")],
+                        vel=[float(x) for x in match.group("vel").split(" ")]
                     )
                 )
 
@@ -268,11 +282,17 @@ class Parser:
                 "particles" : []
             }
 
-            if (line.find("RandomImpulse") >= 0):
+            if (line.find("SubV") >= 0):
+                result["type"] = "collision"
+
+            elif (line.find("type: ri") >= 0):
                 result["type"] = "impulse"
 
-            elif (line.find("SubV") >= 0):
-                result["type"] = "collision"
+            elif (line.find("type: load") >= 0):
+                result["type"] = "loading"
+
+            elif (line.find("type: rest") >= 0):
+                result["type"] = "restitution"
 
             else:
                 return None
@@ -280,12 +300,85 @@ class Parser:
             for section in line.split("]["):
                 match = re.search(r"p_id:(?P<id>\d+)", section)
                 if (match is None):
-                    print(f"WARNING: no match for: {section}")
+                    print(f"WARNING (message): no match for: {section}")
                     continue
                 result["particles"].append(int(match.group("id")))
 
             if (len(result["particles"]) == 0):
-                print(f"WARNING: no particle IDs found for line: {line}")
+                print(f"WARNING (message): no particle IDs found for line: {line}")
                 return None
+
+            return result
+
+    class UnifiedParser:
+
+        def __init__ (self):
+            print("WARNING: treat UnifiedParser class as static")
+            raise Exception
+
+        @staticmethod
+        def parseLog (contents):
+            result = {}
+            time = -1
+            prevTime = time  # used to help label duplicates
+            timeTag = 0 # label for duplicates
+            for line in range(0, len(contents)):
+                try:
+                    # line represents a time, note the time and skip to the subV line of the log
+                    float(contents[line])
+                    time = contents[line].rstrip("\n")
+                    continue
+                except ValueError:
+                    # line is not a time
+                    pass
+
+                if (time != prevTime):
+                    prevTime = time
+                    timeTag = 0
+
+                temp = Parser.UnifiedParser.parseLine(contents[line])
+                if (temp is not None):
+                    result[time + f" ({timeTag})"] = temp
+                    timeTag += 1
+
+            return result
+
+        @staticmethod
+        def parseLine (line):
+            result = {
+                "type" : "",
+                "snapshots" : []
+            }
+
+            loggingStart = line.find("logging_out")
+            if (loggingStart < 0):
+                # not a line with logging data
+                return None
+
+            # Get the type of event (will be the same for all particles in the line)
+            if (line.find("type: ri") >= 0):
+                result["type"] = "impulse"
+            elif (line.find("type: load") >= 0):
+                result["type"] = "loading"
+            elif (line.find("type: rest") >= 0):
+                result["type"] = "restitution"
+            elif (line.find("type: init") >= 0):
+                result["type"] = "initialization"
+            else:
+                # this will happen if there are no logging messages
+                return None
+
+            for particle in line[loggingStart:].split("], ["):
+                match = re.match(r".*subV_id: (?P<subV_id>\d+), p_id: (?P<p_id>\d+), vel: <(?P<vel>.+)>, pos: <(?P<pos>.+)>", particle)
+                if (match is None):
+                    print(f"WARNING (unified): no match for: {particle}")
+                    continue
+                result["snapshots"].append(Snapshot(
+                        subV_id=int(match.group("subV_id")),
+                        p_id=int(match.group("p_id")),
+                        pos=[float(x) for x in match.group("pos").split(" ")],
+                        vel=[float(x) for x in match.group("vel").split(" ")]
+                    )
+                )
 
             return result

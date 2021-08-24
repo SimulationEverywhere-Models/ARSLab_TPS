@@ -1,14 +1,23 @@
+# Thomas Roller
+# Carleton University - ARSLab
+# A script to create random particles for the Tethered Particle System
+
 import random
 import json
+import sys
 
+# Random number between minimum and maximum
 # minumum: float
 # maximum: float
+# return: float
 def randomNum (minimum, maximum):
     return (random.random() * (maximum - minimum)) + minimum
 
+# Organize provided data into a dictionary
 # position: list
 # velocity: list
 # species: string
+# return: dict
 def createParticle (position, velocity, species):
     return {
         "position" : position,
@@ -16,8 +25,10 @@ def createParticle (position, velocity, species):
          "species" : species
     }
 
+# Distance between position p1 and position p2
 # p1: list
 # p2: list
+# return: float
 def distance (p1, p2):
     if (len(p1) != len(p2)):
         return -1
@@ -27,10 +38,12 @@ def distance (p1, p2):
         result += (p2[i] - p1[i]) ** 2
     return result ** 0.5
 
+# Check that a new particle does not overlap existing particles
 # newPos: list
 # newSpecies: string
 # existingParticles: dict (result["particles"])
 # allSpecies: dict
+# return: bool
 def isValidPos (newPos, newSpecies, existingParticles, allSpecies):
     for pID in existingParticles:
         dist = distance(existingParticles[pID]["position"], newPos)
@@ -40,12 +53,15 @@ def isValidPos (newPos, newSpecies, existingParticles, allSpecies):
             return False
     return True
 
+# create a list of random values between minumum and maximum of length dim
 # dim: int
 # minumum: float
 # maximum: float
+# return: list
 def genList (dim, minimum, maximum):
     return [randomNum(minimum, maximum) for i in range(0, dim)]
 
+# generate particles based on provided arguments
 # dim: int
 # maxParticles: int
 # allSpecies: dict
@@ -54,6 +70,7 @@ def genList (dim, minimum, maximum):
 # minVel: float
 # maxVel: float
 # maxAttempts: int
+# return: dict
 def genParticles (dim, maxParticles, allSpecies, minPos, maxPos, minVel, maxVel, maxAttempts=10):
     result = {}
     for i in range (1, maxParticles + 1):
@@ -73,30 +90,31 @@ def genParticles (dim, maxParticles, allSpecies, minPos, maxPos, minVel, maxVel,
             break
     return result
 
+# Check to see if the user provided a configuration file
+configTemplate = "config_template.json"
+if (len(sys.argv) == 2):
+    configTemplate = sys.argv[1]
+
+# Import and store the configuration template
 result = None
 with open("config_template.json", "r") as f:
     result = json.loads(f.read())
 
+# Note the possible particle species
 species = result["species"]
 
-#dim = 2
-#maxParticles = 1000
-#posRange = [-150, 150]
-#velRange = [-3, 3]
-
-#dim = 2
-#maxParticles = 2000
-#posRange = [-150, 150]
-#velRange = [-3, 3]
-
-dim = 2
-maxParticles = 10
-posRange = [-15, 15]
-velRange = [-3, 3]
-result["particles"] = genParticles(dim, maxParticles, species, posRange[0], posRange[1],
+# Configure and execute the script
+dim = 2  # the dimension that the particles exist in
+maxParticles = 10  # number of particle that the script will attempt to create
+posRange = [-15, 15]  # each component of a particle's position will be between these values
+velRange = [-3, 3]  # each component of a particle's velocity will be between these values
+result["particles"] = genParticles(dim, maxParticles, species,
+                                   posRange[0], posRange[1],
                                    velRange[0], velRange[1])
 
+# Create a string that represents the dictionary used in the script
 output = json.dumps(result)
 
+# Export JSON string
 with open("output.json", "w") as f:
     f.write(output)

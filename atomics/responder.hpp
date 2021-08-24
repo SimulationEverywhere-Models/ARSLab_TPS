@@ -164,8 +164,15 @@ template<typename TIME> class Responder {
                     state.loading_trees.insert(child);
                 }
 
+                if (DEBUG_RE) cout << "resp internal_transition: removing buffer from loading_trees: ptr: " << state.buffer << ", val: " << *state.buffer << endl;
+                if (DEBUG_RE) cout << "resp internal_transition: loading_trees size before buffer removal (after child addition): " << state.loading_trees.size() << endl;
+                if (DEBUG_RI) display_loading_trees_debug("internal_transition");
+
                 // remove buffer node from tree
                 state.loading_trees.erase(state.buffer);
+
+                if (DEBUG_RE) cout << "resp internal_transition: loading_trees size after buffer removal: " << state.loading_trees.size() << endl;
+                if (DEBUG_RI) display_loading_trees_debug("internal_transition");
 
                 // change velocities of involved particles (from messages)
                 for (message_t message : state.collision_messages) {
@@ -183,6 +190,16 @@ template<typename TIME> class Responder {
 
                 // clear buffer
                 state.buffer = NULL;
+            }
+
+            // this must be set again since the loading_tree has been updated
+            if (state.loading_trees.size() > 0) {
+                state.next_internal = (*state.loading_trees.begin())->getRest() - state.current_time;
+                if (DEBUG_RI) cout << "resp internal_transition: setting next_internal to: " << state.next_internal << endl;
+            }
+            else {
+                if (DEBUG_RI) cout << "resp internal_transition: passivating (no restitutions to perform)" << endl;
+                state.next_internal = numeric_limits<TIME>::infinity();
             }
 
             // this must be done after the above tree/velocity operations as the messages as used
@@ -223,7 +240,14 @@ template<typename TIME> class Responder {
                 // no velocities should be changed until restitution occurs
                 // these messages will be sent to the detector and also used to set the velocities in the responder
                 for (unsigned int i = 0; i < velocities.size(); ++i) {
-                    state.collision_messages.push_back(message_t(velocities[i], group_data[i].ids, "rest"));  // string is for the message purpose (mainly logging purposes)
+                    state.collision_messages.push_back(message_t(velocities[i], group_data[i].ids, "rest"));  // string is for the message's purpose attribute (mainly logging purposes)
+                }
+
+                if (DEBUG_RE) {
+                    cout << "resp internal transition: prepared messages:" << endl;
+                    for (auto msg : state.collision_messages) {
+                        cout << "| " << msg << endl;
+                    }
                 }
 
                 // next_internal is set earlier (before RI check to make sure that it gets set)
@@ -273,6 +297,7 @@ template<typename TIME> class Responder {
             for (const auto &x : get_messages<typename Responder_defs::collision_in>(mbs)) {
                 if (DEBUG_RE) cout << "resp external transition: responder received collision: " << x << endl;
 
+                // reset since we have received a new collision
                 state.buffer = NULL;  // do not manipulate the tree for this node
                 state.collision_messages.clear();  // prepare messages buffer for next set of velocities
 
@@ -307,7 +332,7 @@ template<typename TIME> class Responder {
                 // calculate restitution time
                 float restitution_time = state.current_time + 10;  // TODO: THIS NEEDS TO BE CALCULATED (probably from some particle species value(s))
 
-                if (DEBUG_RI) {
+                if (DEBUG_RE) {
                     cout << "resp external_transition: impulses/velocities calculated:" << endl;
                     cout << "|        full impulse: " << VectorUtils::get_string<float>(full_impulse) << endl;
                     cout << "|     loading impulse: " << VectorUtils::get_string<float>(loading_impulse) << endl;
@@ -338,11 +363,12 @@ template<typename TIME> class Responder {
                 state.loading_trees.insert(newNode);
                 for (Node* child : child_trees) {
                     state.loading_trees.erase(child);
+                    if (DEBUG_RE) cout << "resp internal_transition: removing node from loading_trees (added as child): ptr: " << child << ", val: " << *child << endl;
                 }
 
                 if (DEBUG_RI) cout << "resp external_transition: added node to state.loading_trees: " << *newNode << endl;
 
-                // print state of state.loading_trees before additions or removals
+                // print state of state.loading_trees after additions or removals
                 if (DEBUG_RI) display_loading_trees_debug("external_transition");
 
                 // update loading relations
@@ -369,9 +395,8 @@ template<typename TIME> class Responder {
                 // prepare messages
                 state.collision_messages.push_back(message_t(loading_velocity, involved_ids, "load"));  // string is for the message purpose (mainly logging purposes)
 
-                // set next internal to the smallest restitution time
-                state.next_internal = 0;  // immediately send new velocities to subVs
-                //state.next_internal = (*state.loading_trees.begin())->getRest() - state.current_time;
+                // immediately send new velocities to subVs
+                state.next_internal = 0;
             }
 
             // set next internal
@@ -465,7 +490,7 @@ template<typename TIME> class Responder {
             if (DEBUG_RE) cout << "resp calc_impulse called" << endl;
             vector<float> result;
 
-            float c_restitute = 0.9;  // [0, 1]
+            float c_restitute = 1;//0.9;  // coefficient of restitution (0: completely inelastic collisions, 1: completely elastic collisions) // TODO: should be calculated
 
             // relative velocity of p1 and p2
             vector<float> v_1_2 = VectorUtils::element_op(state.particle_data[to_string(p2_id)]["velocity"],
@@ -542,9 +567,11 @@ template<typename TIME> class Responder {
         }
 
         void display_loading_trees_debug (string function_name) {
-            cout << "resp " << function_name << ": nodes in state.loading_trees:" << endl;
+            cout << "resp " << function_name << ": nodes in state.loading_trees (size: " << state.loading_trees.size() << "):" << endl;
             for (Node* node : state.loading_trees) {
-                cout << "| " << *node << endl;
+                cout << "| ptr: " << node << ", val: ";
+                cout.flush();
+                cout << *node << endl;
             }
             if (state.loading_trees.size() == 0) {
                 cout << "| state.loading_trees reported size=0" << endl;

@@ -222,7 +222,7 @@ template<typename TIME> class Responder {
                 if (DEBUG_RI) cout << "resp internal_transition: messages being prepared for node: " << *curr_node << endl;
 
                 // get loading group data
-                vector<int> p_ids = {curr_node->getColliders().second, curr_node->getColliders().first};
+                vector<int> p_ids = {curr_node->getColliders().first, curr_node->getColliders().second};
                 vector<scan_result_t> group_data;
                 group_data.push_back(scan_branch(p_ids[0], p_ids[1]));
                 group_data.push_back(scan_branch(p_ids[1], p_ids[0]));
@@ -334,6 +334,16 @@ template<typename TIME> class Responder {
 
                 if (DEBUG_RE) {
                     cout << "resp external_transition: impulses/velocities calculated:" << endl;
+                    cout << "| p1_id: " << p_ids[0] << endl;
+                    cout << "| p1_group_ids: " << VectorUtils::get_string<int>(group_data[0].ids) << endl;
+                    cout << "| p1_group_vel: " << VectorUtils::get_string<float>(state.particle_data[to_string(p_ids[0])]["velocity"]) << endl;
+                    cout << "| p1_group_mass: " << group_data[0].mass << endl;
+                    cout << "|" << endl;
+                    cout << "| p2_id: " << p_ids[1] << endl;
+                    cout << "| p2_group_ids: " << VectorUtils::get_string<int>(group_data[1].ids) << endl;
+                    cout << "| p2_group_vel: " << VectorUtils::get_string<float>(state.particle_data[to_string(p_ids[1])]["velocity"]) << endl;
+                    cout << "| p2_group_mass: " << group_data[1].mass << endl;
+                    cout << "|" << endl;
                     cout << "|        full impulse: " << VectorUtils::get_string<float>(full_impulse) << endl;
                     cout << "|     loading impulse: " << VectorUtils::get_string<float>(loading_impulse) << endl;
                     cout << "|    loading velocity: " << VectorUtils::get_string<float>(loading_velocity) << endl;
@@ -539,7 +549,7 @@ template<typename TIME> class Responder {
                     state.particle_data[to_string(p1_id)]["velocity"],
                     VectorUtils::subtract
                 ),
-                p1_mass + p2_mass,
+                1 / ((1 / p1_mass) + (1 / p2_mass)),  // this differs from the thesis (originally detailed on p118)
                 VectorUtils::multiply
             );
         }

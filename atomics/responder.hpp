@@ -160,16 +160,25 @@ template<typename TIME> class Responder {
                 if (DEBUG_RI) cout << "resp internal_transition: buffer is not NULL (perform restitution from previous internal transition)" << endl;
 
                 // add children back into tree (they have the same restitutionTime as parent (set in Node.addChild))
+                if (DEBUG_RE) cout << "resp internal_transition: adding child nodes of buffer:" << endl;
                 for (Node* child : state.buffer->getChildren()) {
+                    if (DEBUG_RE) cout << "| " << *child << endl;
                     state.loading_trees.insert(child);
                 }
 
-                if (DEBUG_RE) cout << "resp internal_transition: removing buffer from loading_trees: ptr: " << state.buffer << ", val: " << *state.buffer << endl;
                 if (DEBUG_RE) cout << "resp internal_transition: loading_trees size before buffer removal (after child addition): " << state.loading_trees.size() << endl;
                 if (DEBUG_RI) display_loading_trees_debug("internal_transition");
 
+                if (DEBUG_RE) cout << "resp internal_transition: removing buffer from loading_trees: ptr: " << state.buffer << ", val: " << *state.buffer << endl;
+
                 // remove buffer node from tree
-                state.loading_trees.erase(state.buffer);
+                int successes = state.loading_trees.erase(state.buffer);
+                if (DEBUG_RE) cout << "resp internal_transition: number of values removed: " << successes << endl;
+                // if removal fails, do so manually
+                if (successes == 0) {
+                    if (DEBUG_RE) cout << "resp internal_transition: removing node manually" << endl;
+                    state.loading_trees.erase(searchSet(state.buffer));  // see searchSet function comments for explanation
+                }
 
                 if (DEBUG_RE) cout << "resp internal_transition: loading_trees size after buffer removal: " << state.loading_trees.size() << endl;
                 if (DEBUG_RI) display_loading_trees_debug("internal_transition");
@@ -369,11 +378,21 @@ template<typename TIME> class Responder {
 
                 // create new node and remove older pointers
                 Node* newNode = new Node(p_ids[0], p_ids[1], group_data[0].mass + group_data[1].mass, restitution_time, restitution_impulse);
+                cout << "resp external_transition: adding children to new node" << endl;
                 newNode->addChildren(child_trees);
+                // print state of state.loading_trees before additions or removals but after children have been added to node
+                if (DEBUG_RI) display_loading_trees_debug("external_transition");
                 state.loading_trees.insert(newNode);
                 for (Node* child : child_trees) {
-                    state.loading_trees.erase(child);
-                    if (DEBUG_RE) cout << "resp internal_transition: removing node from loading_trees (added as child): ptr: " << child << ", val: " << *child << endl;
+                    if (DEBUG_RE) cout << "resp external_transition: removing node from loading_trees (added as child): ptr: " << child << ", val: " << *child << endl;
+                    if (DEBUG_RE) cout << "resp external_transition: find node result (in set): " << (state.loading_trees.find(child) == state.loading_trees.end() ? "false" : "true") << endl;
+                    int successes = state.loading_trees.erase(child);
+                    if (DEBUG_RE) cout << "resp external_transition: number of values removed: " << successes << endl;
+                    // if removal fails, do so manually
+                    if (successes == 0) {
+                        if (DEBUG_RE) cout << "resp external_transition: removing node manually" << endl;
+                        state.loading_trees.erase(searchSet(child));  // see searchSet function comments for explanation
+                    }
                 }
 
                 if (DEBUG_RI) cout << "resp external_transition: added node to state.loading_trees: " << *newNode << endl;
@@ -586,6 +605,18 @@ template<typename TIME> class Responder {
             if (state.loading_trees.size() == 0) {
                 cout << "| state.loading_trees reported size=0" << endl;
             }
+        }
+
+        // this should not be needed since searching an ordered set should be trivial
+        // despite this, removing child nodes proved unreliable when erasing by value
+        // instead, it became necessary to erase by an iterator that is obtained manually
+        set<Node*, NodePtrComp>::iterator searchSet (Node* child) {
+            for (auto it = state.loading_trees.begin(); it != state.loading_trees.end(); ++it) {
+                if ((*it)->getColliders().first == child->getColliders().first && (*it)->getColliders().second == child->getColliders().second) {
+                    return it;
+                }
+            }
+            return state.loading_trees.end();
         }
 };
 

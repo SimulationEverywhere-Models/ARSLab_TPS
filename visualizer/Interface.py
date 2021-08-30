@@ -302,7 +302,7 @@ class Interface(tk.Frame):
     @staticmethod
     def calcShade (z, minZ, maxZ, minC, maxC):
         shade = minC + ((maxC - minC) * ((z - minZ) / (maxZ - minZ)))
-        shade = maxC - shade  # make lower z-values lighter instead of darker
+        #shade = maxC - shade  # make lower z-values lighter instead of darker
         if (shade < minC):
             return minC
         elif (shade > maxC):

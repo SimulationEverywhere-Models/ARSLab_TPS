@@ -129,6 +129,11 @@ template<typename TIME> class Responder {
             //cout << "finished ctor" << endl;
         }
 
+        ~Responder () {
+            cout << "resp destructor: printing final storage" << endl;
+            display_loading_trees_debug("destructor");
+        }
+
         // internal transition
         void internal_transition () {
             if (DEBUG_RE) cout << "resp internal transition called" << endl;
@@ -163,7 +168,8 @@ template<typename TIME> class Responder {
                 if (DEBUG_RE) cout << "resp internal_transition: adding child nodes of buffer:" << endl;
                 for (Node* child : state.buffer->getChildren()) {
                     if (DEBUG_RE) cout << "| " << *child << endl;
-                    state.loading_trees.insert(child);
+                    auto insertion_result = state.loading_trees.insert(child);
+                    if (DEBUG_RE) cout << "| item added: " << (insertion_result.second ? "true" : "false") << endl;
                 }
 
                 if (DEBUG_RE) cout << "resp internal_transition: loading_trees size before buffer removal (after child addition): " << state.loading_trees.size() << endl;
@@ -172,8 +178,8 @@ template<typename TIME> class Responder {
                 if (DEBUG_RE) cout << "resp internal_transition: removing buffer from loading_trees: ptr: " << state.buffer << ", val: " << *state.buffer << endl;
 
                 // remove buffer node from tree
-                int successes = state.loading_trees.erase(state.buffer);
-                if (DEBUG_RE) cout << "resp internal_transition: number of values removed: " << successes << endl;
+                int successes = 0;//state.loading_trees.erase(state.buffer);
+                if (DEBUG_RE) cout << "resp internal_transition: number of values removed: " << successes << endl;  // TODO: figure out why this is removing more than one node
                 // if removal fails, do so manually
                 if (successes == 0) {
                     if (DEBUG_RE) cout << "resp internal_transition: removing node manually" << endl;
@@ -386,7 +392,7 @@ template<typename TIME> class Responder {
                 for (Node* child : child_trees) {
                     if (DEBUG_RE) cout << "resp external_transition: removing node from loading_trees (added as child): ptr: " << child << ", val: " << *child << endl;
                     if (DEBUG_RE) cout << "resp external_transition: find node result (in set): " << (state.loading_trees.find(child) == state.loading_trees.end() ? "false" : "true") << endl;
-                    int successes = state.loading_trees.erase(child);
+                    int successes = 0;//state.loading_trees.erase(child);
                     if (DEBUG_RE) cout << "resp external_transition: number of values removed: " << successes << endl;
                     // if removal fails, do so manually
                     if (successes == 0) {

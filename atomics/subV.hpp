@@ -153,7 +153,7 @@ template<typename TIME> class SubV {
             if (DEBUG_SV) cout << "subV external transition called" << endl;
 
             state.awaiting_response = false;
-            state.sending_collision = false;  // do not output a collision message if an enternal event is called between calls to internal transition and output
+            state.sending_collision = false;  // do not output a collision message if an external event is called between calls to internal transition and output
             bool applicable_message_processed = false;
 
             // update the current time before doing work

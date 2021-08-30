@@ -130,8 +130,10 @@ template<typename TIME> class Responder {
         }
 
         ~Responder () {
-            cout << "resp destructor: printing final storage" << endl;
-            display_loading_trees_debug("destructor");
+            if (DEBUG_RE) {
+                cout << "resp destructor: printing final storage" << endl;
+                display_loading_trees_debug("destructor");
+            }
         }
 
         // internal transition
@@ -144,16 +146,17 @@ template<typename TIME> class Responder {
             // set this before the following check (to make sure that it gets set before returning)
             if (state.loading_trees.size() > 0) {
                 state.next_internal = (*state.loading_trees.begin())->getRest() - state.current_time;
-                if (DEBUG_RI) cout << "resp internal_transition: setting next_internal to: " << state.next_internal << endl;
+                if (DEBUG_RE) cout << "resp internal_transition: setting next_internal to: " << state.next_internal << endl;
+                cout << "1st: " << (*state.loading_trees.begin())->getRest() << " - " << state.current_time << " = " << (*state.loading_trees.begin())->getRest() - state.current_time << endl;
             }
             else {
-                if (DEBUG_RI) cout << "resp internal_transition: passivating (no restitutions to perform)" << endl;
+                if (DEBUG_RE) cout << "resp internal_transition: passivating (no restitutions to perform)" << endl;
                 state.next_internal = numeric_limits<TIME>::infinity();
             }
 
             // if we are here because of an RI, we just need to set next_internal and change the flag
             if (state.sending_ri) {
-                if (DEBUG_RI) cout << "resp internal_transition: prematurely returning (received RI)" << endl;
+                if (DEBUG_RE) cout << "resp internal_transition: prematurely returning (received RI)" << endl;
                 state.sending_ri = false;
                 return;
             }
@@ -162,7 +165,7 @@ template<typename TIME> class Responder {
             // also change the velocities of particles to be the post-restitution velocities
             // this is where restitution happens in the responder
             if (state.buffer != NULL) {
-                if (DEBUG_RI) cout << "resp internal_transition: buffer is not NULL (perform restitution from previous internal transition)" << endl;
+                if (DEBUG_RE) cout << "resp internal_transition: buffer is not NULL (perform restitution from previous internal transition)" << endl;
 
                 // add children back into tree (they have the same restitutionTime as parent (set in Node.addChild))
                 if (DEBUG_RE) cout << "resp internal_transition: adding child nodes of buffer:" << endl;
@@ -173,7 +176,7 @@ template<typename TIME> class Responder {
                 }
 
                 if (DEBUG_RE) cout << "resp internal_transition: loading_trees size before buffer removal (after child addition): " << state.loading_trees.size() << endl;
-                if (DEBUG_RI) display_loading_trees_debug("internal_transition");
+                if (DEBUG_RE) display_loading_trees_debug("internal_transition");
 
                 if (DEBUG_RE) cout << "resp internal_transition: removing buffer from loading_trees: ptr: " << state.buffer << ", val: " << *state.buffer << endl;
 
@@ -181,13 +184,13 @@ template<typename TIME> class Responder {
                 int successes = 0;//state.loading_trees.erase(state.buffer);
                 if (DEBUG_RE) cout << "resp internal_transition: number of values removed: " << successes << endl;  // TODO: figure out why this is removing more than one node
                 // if removal fails, do so manually
-                if (successes == 0) {
+                if (successes != 1) {
                     if (DEBUG_RE) cout << "resp internal_transition: removing node manually" << endl;
                     state.loading_trees.erase(searchSet(state.buffer));  // see searchSet function comments for explanation
                 }
 
                 if (DEBUG_RE) cout << "resp internal_transition: loading_trees size after buffer removal: " << state.loading_trees.size() << endl;
-                if (DEBUG_RI) display_loading_trees_debug("internal_transition");
+                if (DEBUG_RE) display_loading_trees_debug("internal_transition");
 
                 // change velocities of involved particles (from messages)
                 for (message_t message : state.collision_messages) {
@@ -210,10 +213,11 @@ template<typename TIME> class Responder {
             // this must be set again since the loading_tree has been updated
             if (state.loading_trees.size() > 0) {
                 state.next_internal = (*state.loading_trees.begin())->getRest() - state.current_time;
-                if (DEBUG_RI) cout << "resp internal_transition: setting next_internal to: " << state.next_internal << endl;
+                if (DEBUG_RE) cout << "resp internal_transition: setting next_internal to: " << state.next_internal << endl;
+                //cout << "2nd: " << (*state.loading_trees.begin())->getRest() << " - " << state.current_time << " = " << (*state.loading_trees.begin())->getRest() - state.current_time << endl;
             }
             else {
-                if (DEBUG_RI) cout << "resp internal_transition: passivating (no restitutions to perform)" << endl;
+                if (DEBUG_RE) cout << "resp internal_transition: passivating (no restitutions to perform)" << endl;
                 state.next_internal = numeric_limits<TIME>::infinity();
             }
 
@@ -222,7 +226,7 @@ template<typename TIME> class Responder {
             state.collision_messages.clear();  // can be done here since output is called before internal transition in Cadmium
 
             // print state of state.loading_trees before additions or removals
-            if (DEBUG_RI) display_loading_trees_debug("internal_transition");
+            if (DEBUG_RE) display_loading_trees_debug("internal_transition");
 
             // if there are no restitutions in the future, resp is passivated (earlier in the function)
             // otherwise, prepare the next restitution
@@ -230,11 +234,11 @@ template<typename TIME> class Responder {
                 // the following should happen on the internal transition AFTER output sends the messages pertaining to the node in the buffer
                 // here, we find the next node to be restituted and store that information (messages and buffer)
 
-                if (DEBUG_RI) cout << "resp internal_transition: calculating/preparing next restitution" << endl;
+                if (DEBUG_RE) cout << "resp internal_transition: calculating/preparing next restitution" << endl;
 
                 Node* curr_node = *state.loading_trees.begin();  // get the node with the nearest restitution time
                 state.buffer = curr_node;  // store so that modifications can be made to the tree after the messages are sent
-                if (DEBUG_RI) cout << "resp internal_transition: messages being prepared for node: " << *curr_node << endl;
+                if (DEBUG_RE) cout << "resp internal_transition: messages being prepared for node: " << *curr_node << endl;
 
                 // get loading group data
                 vector<int> p_ids = {curr_node->getColliders().first, curr_node->getColliders().second};
@@ -345,7 +349,8 @@ template<typename TIME> class Responder {
                 vector<float> restitution_impulse = VectorUtils::element_op(full_impulse, loading_impulse, VectorUtils::subtract);
 
                 // calculate restitution time
-                float restitution_time = state.current_time + 10;  // TODO: THIS NEEDS TO BE CALCULATED (probably from some particle species value(s))
+                // TODO: should be calculated
+                float restitution_time = state.current_time + 3;
 
                 if (DEBUG_RE) {
                     cout << "resp external_transition: impulses/velocities calculated:" << endl;
@@ -380,14 +385,14 @@ template<typename TIME> class Responder {
                 }
 
                 // print state of state.loading_trees before additions or removals
-                if (DEBUG_RI) display_loading_trees_debug("external_transition");
+                if (DEBUG_RE) display_loading_trees_debug("external_transition");
 
                 // create new node and remove older pointers
                 Node* newNode = new Node(p_ids[0], p_ids[1], group_data[0].mass + group_data[1].mass, restitution_time, restitution_impulse);
-                cout << "resp external_transition: adding children to new node" << endl;
+                if (DEBUG_RE) cout << "resp external_transition: adding children to new node" << endl;
                 newNode->addChildren(child_trees);
                 // print state of state.loading_trees before additions or removals but after children have been added to node
-                if (DEBUG_RI) display_loading_trees_debug("external_transition");
+                if (DEBUG_RE) display_loading_trees_debug("external_transition");
                 state.loading_trees.insert(newNode);
                 for (Node* child : child_trees) {
                     if (DEBUG_RE) cout << "resp external_transition: removing node from loading_trees (added as child): ptr: " << child << ", val: " << *child << endl;
@@ -395,16 +400,16 @@ template<typename TIME> class Responder {
                     int successes = 0;//state.loading_trees.erase(child);
                     if (DEBUG_RE) cout << "resp external_transition: number of values removed: " << successes << endl;
                     // if removal fails, do so manually
-                    if (successes == 0) {
+                    if (successes != 1) {
                         if (DEBUG_RE) cout << "resp external_transition: removing node manually" << endl;
                         state.loading_trees.erase(searchSet(child));  // see searchSet function comments for explanation
                     }
                 }
 
-                if (DEBUG_RI) cout << "resp external_transition: added node to state.loading_trees: " << *newNode << endl;
+                if (DEBUG_RE) cout << "resp external_transition: added node to state.loading_trees: " << *newNode << endl;
 
                 // print state of state.loading_trees after additions or removals
-                if (DEBUG_RI) display_loading_trees_debug("external_transition");
+                if (DEBUG_RE) display_loading_trees_debug("external_transition");
 
                 // update loading relations
                 state.id_loaded[p_ids[0]].insert(p_ids[1]);
@@ -474,7 +479,7 @@ template<typename TIME> class Responder {
         // time advance function
         TIME time_advance () const {
             if (DEBUG_RE) cout << "resp time advance called/returning" << endl;
-            return state.next_internal;
+            return state.next_internal < 0 ? 0 : state.next_internal;
         }
 
         /*
@@ -525,7 +530,8 @@ template<typename TIME> class Responder {
             if (DEBUG_RE) cout << "resp calc_impulse called" << endl;
             vector<float> result;
 
-            float c_restitute = 1;//0.9;  // coefficient of restitution (0: completely inelastic collisions, 1: completely elastic collisions) // TODO: should be calculated
+            // TODO: should be calculated
+            float c_restitute = 0.9;  // coefficient of restitution (0: completely inelastic collisions, 1: completely elastic collisions)
 
             // relative velocity of p1 and p2
             vector<float> v_1_2 = VectorUtils::element_op(state.particle_data[to_string(p2_id)]["velocity"],

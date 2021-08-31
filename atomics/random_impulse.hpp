@@ -196,7 +196,7 @@ template<typename TIME> class RandomImpulse {
         // time advance function
         TIME time_advance () const {
             if (DEBUG_RI) cout << "ri time advance called/returning" << endl;
-            return state.next_internal;
+            return state.next_internal < 0 ? 0 : state.next_internal;
         }
 
         friend ostringstream& operator<<(ostringstream& os, const typename RandomImpulse<TIME>::state_type& i) {

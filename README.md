@@ -1,5 +1,7 @@
 # ARSLab_TPS
-Temporary repository for an implementation of the Tethered Particle System in the DEVS simulator, Cadmium
+Repository for an implementation of the Tethered Particle System in the DEVS simulator, Cadmium.
+
+Refer to the docs directory for setup and usage information.
 
 === Messages ===
 
